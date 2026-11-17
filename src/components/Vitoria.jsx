@@ -2,7 +2,7 @@ import { useState } from "react";
 import { PAL } from "../data/jogosData";
 import Titulo from "./Titulo";
 
-export default function Vitoria() {
+export default function Vitoria({ calmo = false }) {
   const [conf] = useState(() =>
     Array.from({ length: 30 }, (_, i) => ({
       l: Math.random() * 100,
@@ -14,18 +14,19 @@ export default function Vitoria() {
 
   return (
     <div className="vitoria" role="status">
-      {conf.map((c, i) => (
-        <i
-          key={i}
-          className="confete"
-          style={{
-            left: `${c.l}%`,
-            background: c.c,
-            animationDelay: `${c.d}s`,
-            animationDuration: `${c.t}s`,
-          }}
-        />
-      ))}
+      {!calmo &&
+        conf.map((c, i) => (
+          <i
+            key={i}
+            className="confete"
+            style={{
+              left: `${c.l}%`,
+              background: c.c,
+              animationDelay: `${c.d}s`,
+              animationDuration: `${c.t}s`,
+            }}
+          />
+        ))}
       <div className="selo">
         <div className="selo-estrela" aria-hidden="true">
           ⭐

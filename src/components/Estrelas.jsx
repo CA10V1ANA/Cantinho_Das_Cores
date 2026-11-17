@@ -1,7 +1,7 @@
-export default function Estrelas({ n }) {
+export default function Estrelas({ n, total = 5 }) {
   return (
-    <div className="estrelas" role="img" aria-label={`${n} de 5 estrelas`}>
-      {[0, 1, 2, 3, 4].map((i) => (
+    <div className="estrelas" role="img" aria-label={`${n} de ${total} estrelas`}>
+      {Array.from({ length: total }, (_, i) => (
         <span key={i} className={i < n ? "on" : ""}>
           ★
         </span>

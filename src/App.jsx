@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import {
   cancelarFala,
   definirNomeVoz,
+  definirVelocidadeVoz,
   definirVozAtiva,
   falar,
   listarVozes,
   melhorVoz,
   obterNomeVoz,
 } from "./utils/voz";
+import { definirEfeitosAtivos } from "./utils/sons";
 import Fundo from "./components/Fundo";
 import Login from "./pages/Login";
 import Menu from "./pages/Menu";
@@ -21,35 +23,30 @@ const JOGOS = [
   {
     id: "cores",
     nome: "Acerte a cor",
-    ico: "🎨",
     bg: "linear-gradient(160deg,#D2EEFF,#86CCFF)",
     C: JogoCores,
   },
   {
     id: "encaixe",
     nome: "Encaixe as formas",
-    ico: "🔷",
     bg: "linear-gradient(160deg,#D8F8DF,#86E0A0)",
     C: JogoEncaixe,
   },
   {
     id: "ligar",
     nome: "Ligue ao nome",
-    ico: "🔗",
     bg: "linear-gradient(160deg,#FFF3C4,#FFD25A)",
     C: JogoLigar,
   },
   {
     id: "corforma",
     nome: "Cor e forma",
-    ico: "🧩",
     bg: "linear-gradient(160deg,#EEE4FF,#BDA2FF)",
     C: JogoCorForma,
   },
   {
     id: "falar",
     nome: "Vamos falar",
-    ico: "🗣️",
     bg: "linear-gradient(160deg,#FFE5D6,#FFA784)",
     C: JogoFalar,
   },
@@ -76,6 +73,12 @@ export default function App() {
   const [resp, setResp] = useState(() => lerStorage("cc_resp", ""));
   const [tela, setTela] = useState(() => (lerStorage("cc_resp", "") ? "menu" : "login"));
   const [som, setSom] = useState(() => lerStorage("cc_som", true));
+  const [efeitos, setEfeitos] = useState(() => lerStorage("cc_efeitos", true));
+  const [velocidade, setVelocidade] = useState(() => lerStorage("cc_vel", "calma"));
+  const [fonteMaior, setFonteMaior] = useState(() => lerStorage("cc_fonte_maior", false));
+  const [altoContraste, setAltoContraste] = useState(() => lerStorage("cc_contraste", false));
+  const [calmo, setCalmo] = useState(() => lerStorage("cc_calmo", false));
+  const [totalRodadas, setTotalRodadas] = useState(() => lerStorage("cc_total", 5));
   const [chave, setChave] = useState(0);
   const [feitos, setFeitos] = useState(() => lerStorage("cc_feitos", {}));
   const [vozes, setVozes] = useState([]);
@@ -85,6 +88,32 @@ export default function App() {
     definirVozAtiva(som);
     gravarStorage("cc_som", som);
   }, [som]);
+
+  useEffect(() => {
+    definirEfeitosAtivos(efeitos);
+    gravarStorage("cc_efeitos", efeitos);
+  }, [efeitos]);
+
+  useEffect(() => {
+    definirVelocidadeVoz(velocidade);
+    gravarStorage("cc_vel", velocidade);
+  }, [velocidade]);
+
+  useEffect(() => {
+    gravarStorage("cc_fonte_maior", fonteMaior);
+  }, [fonteMaior]);
+
+  useEffect(() => {
+    gravarStorage("cc_contraste", altoContraste);
+  }, [altoContraste]);
+
+  useEffect(() => {
+    gravarStorage("cc_calmo", calmo);
+  }, [calmo]);
+
+  useEffect(() => {
+    gravarStorage("cc_total", totalRodadas);
+  }, [totalRodadas]);
 
   useEffect(() => {
     if (vozSel) {
@@ -152,17 +181,44 @@ export default function App() {
 
   const jogo = JOGOS.find((j) => j.id === tela);
   const JogoAtivo = jogo?.C;
+  const classesRaiz = [
+    "cc",
+    fonteMaior ? "fonte-maior" : "",
+    altoContraste ? "alto-contraste" : "",
+    calmo ? "modo-calmo" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className="cc">
+    <div className={classesRaiz}>
       <Fundo />
-      {tela === "login" && <Login onEntrar={entrar} />}
+      {tela === "login" && (
+        <Login
+          onEntrar={entrar}
+          onVisitante={() => entrar("visitante")}
+        />
+      )}
       {tela === "menu" && (
         <Menu
           jogos={JOGOS}
           resp={resp}
           som={som}
           onToggleSom={() => setSom((s) => !s)}
+          efeitos={efeitos}
+          onToggleEfeitos={() => setEfeitos((e) => !e)}
+          velocidade={velocidade}
+          onToggleVelocidade={() =>
+            setVelocidade((v) => (v === "calma" ? "normal" : "calma"))
+          }
+          fonteMaior={fonteMaior}
+          onToggleFonteMaior={() => setFonteMaior((f) => !f)}
+          altoContraste={altoContraste}
+          onToggleAltoContraste={() => setAltoContraste((a) => !a)}
+          calmo={calmo}
+          onToggleCalmo={() => setCalmo((c) => !c)}
+          totalRodadas={totalRodadas}
+          onAlterarTotal={(n) => setTotalRodadas(n)}
           onSair={sair}
           vozes={vozes}
           vozSel={vozSel}
@@ -174,7 +230,9 @@ export default function App() {
       {JogoAtivo && (
         <main className="tela">
           <JogoAtivo
-            key={chave}
+            key={`${chave}-${totalRodadas}`}
+            total={totalRodadas}
+            calmo={calmo}
             onSair={() => {
               cancelarFala();
               setTela("menu");

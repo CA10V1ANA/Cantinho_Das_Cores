@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { cancelarFala, falar } from "../utils/voz";
+import { tocarVitoria } from "../utils/sons";
 import Titulo from "./Titulo";
 import Estrelas from "./Estrelas";
 import Nuvi from "./Nuvi";
@@ -9,6 +10,8 @@ import Fim from "./Fim";
 export default function Casca({
   titulo,
   estrelas,
+  total = 5,
+  calmo = false,
   fala,
   atrasoVitoria = 0,
   onSair,
@@ -16,7 +19,7 @@ export default function Casca({
   onFim,
   children,
 }) {
-  const fim = estrelas >= 5;
+  const fim = estrelas >= total;
   const [vitoria, setVitoria] = useState(false);
   const [final, setFinal] = useState(false);
 
@@ -25,6 +28,7 @@ export default function Casca({
     let tFinal;
     const tInicio = setTimeout(() => {
       setVitoria(true);
+      tocarVitoria();
       falar("Parabéns!");
       tFinal = setTimeout(() => {
         setVitoria(false);
@@ -55,11 +59,11 @@ export default function Casca({
           🏠
         </button>
         <Titulo t={titulo} tag="h1" className="titulo-jogo" />
-        <Estrelas n={estrelas} />
+        <Estrelas n={estrelas} total={total} />
       </header>
-      {vitoria && <Vitoria />}
+      {vitoria && <Vitoria calmo={calmo} />}
       {fim ? (
-        final && <Fim onNovo={onNovo} onSair={sair} onFim={onFim} />
+        final && <Fim total={total} onNovo={onNovo} onSair={sair} onFim={onFim} />
       ) : (
         <>
           <Nuvi fala={fala} ouvivel />

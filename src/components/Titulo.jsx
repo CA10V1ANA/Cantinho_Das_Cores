@@ -1,4 +1,4 @@
-import { PAL } from "../data/jogosData";
+import { PAL_TEXTO } from "../data/jogosData";
 
 export default function Titulo({ t, tag: Tag = "h1", className = "" }) {
   return (
@@ -7,7 +7,7 @@ export default function Titulo({ t, tag: Tag = "h1", className = "" }) {
         <span
           key={i}
           aria-hidden="true"
-          style={{ color: c === " " ? undefined : PAL[i % PAL.length] }}
+          style={{ color: c === " " ? undefined : PAL_TEXTO[i % PAL_TEXTO.length] }}
         >
           {c}
         </span>
