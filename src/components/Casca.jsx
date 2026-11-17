@@ -29,7 +29,7 @@ export default function Casca({
       tFinal = setTimeout(() => {
         setVitoria(false);
         setFinal(true);
-      }, 2600);
+      }, 1800);
     }, atrasoVitoria);
 
     return () => {

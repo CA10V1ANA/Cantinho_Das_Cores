@@ -7,8 +7,8 @@ export default function Vitoria() {
     Array.from({ length: 30 }, (_, i) => ({
       l: Math.random() * 100,
       c: PAL[i % PAL.length],
-      d: Math.random() * 1.2,
-      t: 1.6 + Math.random() * 1.4,
+      d: Math.random() * 0.55,
+      t: 1.2 + Math.random() * 0.8,
     }))
   );
 
