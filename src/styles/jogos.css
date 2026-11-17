@@ -1,0 +1,191 @@
+/* Jogo 1: Acerte a cor */
+.bola {
+  display: block;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 6px solid #fff;
+  box-shadow: 0 5px 0 rgba(43, 58, 103, 0.2), inset 0 -8px 0 rgba(0, 0, 0, 0.1);
+}
+
+.cores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: linear-gradient(160deg, #D2EEFF, #9AD6FF);
+  border: 5px solid #fff;
+  border-radius: 32px;
+  min-height: 380px;
+  box-shadow: 0 8px 0 rgba(43, 58, 103, 0.14);
+}
+
+.alvo {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+}
+
+.anel {
+  display: grid;
+  place-items: center;
+  width: clamp(112px, 34vw, 160px);
+  height: clamp(112px, 34vw, 160px);
+  border-radius: 50%;
+  border: 4px dashed #5BA8E0;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.anel .bola {
+  width: clamp(76px, 24vw, 112px);
+  height: clamp(76px, 24vw, 112px);
+  border-width: 8px;
+}
+
+.opcoes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+  border-left: 4px dashed #5BA8E0;
+  padding: 14px 8px;
+}
+
+/* Jogo 2: Encaixe as formas */
+.linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  background: linear-gradient(160deg, #D8F8DF, #9BE8B2);
+  border: 5px solid #fff;
+  border-radius: 32px;
+  padding: 18px;
+  box-shadow: 0 8px 0 rgba(43, 58, 103, 0.14);
+}
+
+.linha.chao {
+  background: linear-gradient(160deg, #D2EEFF, #9AD6FF);
+  margin-top: 18px;
+}
+
+/* Jogo 3: Ligue ao nome */
+.ligar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  background: linear-gradient(160deg, #FFF3C4, #FFDC7A);
+  border: 5px solid #fff;
+  border-radius: 32px;
+  padding: 18px;
+  box-shadow: 0 8px 0 rgba(43, 58, 103, 0.14);
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.col .ficha {
+  min-height: 72px;
+  width: 100%;
+  padding: 6px 10px;
+}
+
+.emo {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.pal {
+  font-size: clamp(1.25rem, 4.5vw, 1.6rem);
+}
+
+/* Jogo 4: Cor e forma */
+.grade2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  background: linear-gradient(160deg, #EEE4FF, #C9B3FF);
+  border: 5px solid #fff;
+  border-radius: 32px;
+  padding: 18px;
+  box-shadow: 0 8px 0 rgba(43, 58, 103, 0.14);
+}
+
+.grade2 .ficha {
+  min-height: 130px;
+}
+
+/* Jogo 5: Vamos falar */
+.fala-card {
+  background: linear-gradient(160deg, #FFE5D6, #FFB898);
+  border: 5px solid #fff;
+  border-radius: 32px;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 8px 0 rgba(43, 58, 103, 0.14);
+}
+
+.emo.grande {
+  font-size: 5.5rem;
+}
+
+.palavra {
+  font-size: clamp(2.6rem, 12vw, 4rem);
+  line-height: 1.1;
+  margin-top: 4px;
+  -webkit-text-stroke: 6px #fff;
+  paint-order: stroke fill;
+  text-shadow: 0 4px 0 rgba(43, 58, 103, 0.15);
+}
+
+.silabas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 2rem;
+}
+
+.silabas span {
+  padding: 4px 16px;
+  border-radius: 18px;
+  background: var(--creme);
+  box-shadow: 0 4px 0 rgba(43, 58, 103, 0.15);
+  transition: background 0.2s, transform 0.2s;
+}
+
+.silabas .ativa {
+  background: #FFD35A;
+  transform: scale(1.12);
+}
+
+.frase {
+  margin: 14px 0 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 18px;
+  padding: 8px 18px;
+  text-align: center;
+}
+
+@media (max-width: 420px) {
+  .bola {
+    width: 66px;
+    height: 66px;
+  }
+
+  .ligar {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .silabas {
+    font-size: 1.6rem;
+  }
+}

@@ -1,0 +1,43 @@
+:root {
+  --tinta: #2B3A67;
+  --azul: #2D7FF9;
+  --azul-sombra: #1D5DC4;
+  --verde: #24A159;
+  --verde-sombra: #187740;
+  --amarelo: #FFC93C;
+  --amarelo-sombra: #D9A21B;
+  --creme: #FFFAEB;
+  --erro: #A23B2F;
+  --borda-azul: #8FD0FF;
+  --fonte-texto: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
+  --fonte-titulo: 'Fredoka', 'Atkinson Hyperlegible', system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--tinta);
+  font-family: var(--fonte-texto);
+  font-size: 18px;
+  line-height: 1.4;
+  background-color: #CFEFFF;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

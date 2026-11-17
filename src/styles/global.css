@@ -1,0 +1,461 @@
+.cc {
+  position: relative;
+  min-height: 100vh;
+  color: var(--tinta);
+  font-family: var(--fonte-texto);
+  font-size: 18px;
+  background: linear-gradient(180deg, #8FD0FF 0%, #CFEFFF 55%, #FFF1CF 100%);
+  display: flex;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+.fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.fundo-ceu {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 62%;
+}
+
+.fundo-grama {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: clamp(150px, 23vw, 320px);
+}
+
+.tela {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 660px;
+  padding: 18px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: entra 0.28s ease-out;
+}
+
+:where(.cc) button,
+:where(.cc) select {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cc :focus-visible {
+  outline: 4px solid var(--tinta);
+  outline-offset: 3px;
+}
+
+.titulo,
+.btn,
+.nome,
+.pal,
+.silabas,
+.palavra {
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+}
+
+.titulo {
+  margin: 6px 0 16px;
+  text-align: center;
+  font-size: clamp(2rem, 8vw, 3rem);
+  -webkit-text-stroke: 8px #fff;
+  paint-order: stroke fill;
+  text-shadow: 0 5px 0 rgba(43, 58, 103, 0.16);
+  line-height: 1.1;
+}
+
+.titulo.titulo-jogo {
+  font-size: clamp(1.3rem, 5vw, 1.8rem);
+  -webkit-text-stroke: 6px #fff;
+  margin: 0;
+  flex: 1;
+}
+
+/* Botões */
+.btn {
+  font-size: 1.2rem;
+  border: 0;
+  border-radius: 24px;
+  padding: 14px 28px;
+  min-height: 60px;
+  background: var(--azul);
+  color: #fff;
+  box-shadow: 0 6px 0 var(--azul-sombra);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--azul-sombra);
+}
+
+.btn.sec {
+  background: var(--amarelo);
+  color: var(--tinta);
+  box-shadow: 0 6px 0 var(--amarelo-sombra);
+  text-shadow: none;
+}
+
+.btn.sec:active:not(:disabled) {
+  box-shadow: 0 2px 0 var(--amarelo-sombra);
+}
+
+.btn.ok {
+  background: var(--verde);
+  box-shadow: 0 6px 0 var(--verde-sombra);
+}
+
+.btn.ok:active:not(:disabled) {
+  box-shadow: 0 2px 0 var(--verde-sombra);
+}
+
+.btn.peq {
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 1rem;
+  box-shadow: 0 4px 0 var(--amarelo-sombra);
+}
+
+.btn.peq:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--amarelo-sombra);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.acoes {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+/* Mascote Nuvi */
+.nuvi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.nuvi-arte {
+  flex-shrink: 0;
+  animation: flutuar 4s ease-in-out infinite;
+}
+
+.balao {
+  margin: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #FFF6D6;
+  border: 4px solid #FFD36B;
+  border-radius: 24px;
+  padding: 12px 16px;
+  font-size: 1.15rem;
+  line-height: 1.35;
+  box-shadow: 0 5px 0 rgba(43, 58, 103, 0.12);
+}
+
+.balao-texto {
+  margin: 0;
+}
+
+.nuvi-ouvir {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #FFD36B;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  box-shadow: 0 3px 0 rgba(43, 58, 103, 0.12);
+  transition: transform 0.15s ease;
+}
+
+.nuvi-ouvir:hover {
+  transform: scale(1.06);
+}
+
+.nuvi-ouvir:active {
+  transform: translateY(2px);
+}
+
+/* Cabeçalho do jogo e estrelas */
+.jogo {
+  width: 100%;
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 28px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 0 rgba(43, 58, 103, 0.08);
+}
+
+.redondo {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 0;
+  background: var(--amarelo);
+  box-shadow: 0 5px 0 var(--amarelo-sombra);
+  font-size: 1.5rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.redondo:hover {
+  transform: translateY(-2px);
+}
+
+.redondo:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--amarelo-sombra);
+}
+
+.estrelas {
+  font-size: 1.3rem;
+  letter-spacing: 2px;
+  color: rgba(43, 58, 103, 0.24);
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.estrelas .on {
+  color: #FFB703;
+  text-shadow: 0 2px 0 rgba(43, 58, 103, 0.24);
+}
+
+/* Peças arrastáveis e alvos */
+.ficha,
+.cru {
+  position: relative;
+  font: inherit;
+}
+
+.ficha {
+  background: var(--creme);
+  border: 5px solid #fff;
+  border-radius: 28px;
+  min-width: 92px;
+  min-height: 92px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 0 rgba(43, 58, 103, 0.18);
+  transition: transform 0.2s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.ficha:not(:disabled):not(.feito):not(.par):hover {
+  transform: translateY(-2px);
+}
+
+.cru {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: grab;
+  transition: transform 0.2s;
+}
+
+.ficha svg {
+  filter: drop-shadow(0 4px 0 rgba(43, 58, 103, 0.2));
+}
+
+.ficha.sel {
+  border-color: var(--azul);
+  transform: scale(1.06);
+}
+
+.ficha.sobre {
+  border-color: var(--verde);
+  background: #EAFBEF;
+  transform: scale(1.08);
+}
+
+.ficha.certo,
+.ficha.par {
+  border-color: var(--verde);
+}
+
+.ficha.certo {
+  background: #E6F8EC;
+}
+
+.ficha.feito {
+  opacity: 0.3;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.ficha.par {
+  pointer-events: none;
+}
+
+.ficha.tente {
+  animation: balanca 0.5s;
+}
+
+.arrastando {
+  transition: none !important;
+  cursor: grabbing;
+  filter: drop-shadow(0 12px 8px rgba(43, 58, 103, 0.25));
+}
+
+/* Tela de vitória e fim */
+.fim {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  width: 100%;
+}
+
+.fim-estrelas {
+  font-size: 3.4rem;
+  color: #FFB703;
+  letter-spacing: 6px;
+  text-shadow: 0 4px 0 rgba(43, 58, 103, 0.2);
+}
+
+.vitoria {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(43, 58, 103, 0.35);
+  overflow: hidden;
+  animation: aparece 0.3s;
+}
+
+.selo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFF6D6;
+  border: 6px solid #fff;
+  border-radius: 40px;
+  padding: 24px 36px;
+  box-shadow: 0 10px 0 rgba(43, 58, 103, 0.25);
+  animation: pula 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.selo-estrela {
+  font-size: 5rem;
+  line-height: 1;
+  animation: gira 1.2s ease-in-out infinite;
+}
+
+.vitoria .titulo {
+  font-size: clamp(2.6rem, 12vw, 4rem);
+  margin: 0;
+}
+
+.confete {
+  position: absolute;
+  top: -24px;
+  width: 12px;
+  height: 20px;
+  border-radius: 3px;
+  animation: cai linear infinite;
+}
+
+@keyframes entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes flutuar {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes balanca {
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes cai {
+  to {
+    transform: translateY(110vh) rotate(720deg);
+  }
+}
+
+@keyframes pula {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes gira {
+  50% {
+    transform: rotate(14deg) scale(1.12);
+  }
+}
+
+@keyframes aparece {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .ficha {
+    min-width: 76px;
+    min-height: 76px;
+  }
+}
