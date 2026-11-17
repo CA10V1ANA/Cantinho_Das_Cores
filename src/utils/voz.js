@@ -1,4 +1,4 @@
-const voz = { on: true, v: "" };
+const voz = { on: true, v: "", rate: 0.78 };
 
 const PREFERIDAS = [
   "Luciana",
@@ -41,6 +41,10 @@ export function definirNomeVoz(nome) {
   voz.v = nome || "";
 }
 
+export function definirVelocidadeVoz(modo) {
+  voz.rate = modo === "normal" ? 0.94 : 0.78;
+}
+
 export function obterNomeVoz() {
   return voz.v;
 }
@@ -57,7 +61,7 @@ export function falar(texto) {
 
   const utterance = new SpeechSynthesisUtterance(texto);
   utterance.lang = "pt-BR";
-  utterance.rate = 0.82;
+  utterance.rate = voz.rate;
   utterance.pitch = 1;
   utterance.volume = 0.9;
 

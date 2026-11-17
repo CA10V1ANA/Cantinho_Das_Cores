@@ -1,13 +1,13 @@
 export const CORES = [
-  { n: "vermelho", f: "vermelha", h: "#F25C54" },
-  { n: "azul", f: "azul", h: "#3E8EF0" },
-  { n: "verde", f: "verde", h: "#3CC46E" },
-  { n: "amarelo", f: "amarela", h: "#FFC93C" },
-  { n: "rosa", f: "rosa", h: "#FF6FB1" },
-  { n: "laranja", f: "laranja", h: "#FF9A2E" },
-  { n: "roxo", f: "roxa", h: "#8E6CEF" },
-  { n: "turquesa", f: "turquesa", h: "#17C3B2" },
-  { n: "marrom", f: "marrom", h: "#A9714B" },
+  { n: "vermelho", f: "vermelha", h: "#F25C54", evitar: ["laranja", "marrom"] },
+  { n: "azul", f: "azul", h: "#3E8EF0", evitar: ["turquesa", "roxo"] },
+  { n: "verde", f: "verde", h: "#3CC46E", evitar: ["turquesa"] },
+  { n: "amarelo", f: "amarela", h: "#FFC93C", evitar: ["laranja"] },
+  { n: "rosa", f: "rosa", h: "#FF6FB1", evitar: ["roxo", "vermelho"] },
+  { n: "laranja", f: "laranja", h: "#FF9A2E", evitar: ["amarelo", "vermelho"] },
+  { n: "roxo", f: "roxa", h: "#8E6CEF", evitar: ["azul", "rosa"] },
+  { n: "turquesa", f: "turquesa", h: "#17C3B2", evitar: ["verde", "azul"] },
+  { n: "marrom", f: "marrom", h: "#A9714B", evitar: ["vermelho", "laranja"] },
 ];
 
 export const FORMAS = [
@@ -50,3 +50,5 @@ export const FALA = [
 export const PASTEIS = ["#BFE3FF", "#C8F0D0", "#FFE9A8", "#E5D8FF", "#FFD3C2"];
 
 export const PAL = ["#F25C54", "#FF9A2E", "#FFC93C", "#3CC46E", "#3E8EF0", "#8E6CEF", "#FF6FB1"];
+
+export const PAL_TEXTO = ["#DF4A43", "#DC6D00", "#C48300", "#1E9B50", "#226EE0", "#7551DB", "#D6428A"];

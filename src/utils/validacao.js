@@ -22,6 +22,6 @@ export function cpfOk(cpf) {
   return true;
 }
 
-export function gmailOk(email) {
-  return /^[a-z0-9._%+-]+@gmail\.com$/i.test(email.trim());
+export function emailOk(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email.trim());
 }
