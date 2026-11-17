@@ -12,6 +12,12 @@ Aplicação web educativa em **React + Vite + CSS puro**, com foco em acessibili
 4. **Cor e forma** — Identifique a combinação de cor e forma solicitada pela Nuvi.
 5. **Vamos falar** — Treino de fala por sílabas com leitura em voz suave.
 
+## Recursos de acessibilidade e UX
+
+- **Modo visitante e login flexível:** aceita qualquer e-mail válido com validação visual por campo ou acesso direto em 1 clique como visitante.
+- **Painel de ajustes no menu (`⚙️ Ajustes`):** fonte ampliada (`Aa Fonte A+`), **Alto contraste**, **Modo calmo** (remove confetes e animações), controle de efeitos sonoros (Web Audio API), ritmo de fala (**Fala calma / normal**), seleção de voz pt-BR e duração das partidas (**3 ou 5 rodadas**).
+- **Apoio multissensorial nos jogos:** ícone `✓` para daltonismo, dicas progressivas da Nuvi, leitura de palavras por toque e encaixe completo sem rolagem no celular.
+
 ## Como executar localmente
 
 ```bash
@@ -33,10 +39,10 @@ O servidor local sobe por padrão na porta `5185`.
 
 ```text
 src/
-├── components/   # Peças visuais reutilizáveis (Nuvi, Arrasta, Casca, Forma, Fundo, etc.)
+├── components/   # Peças visuais reutilizáveis (Nuvi, Arrasta, Casca, Forma, IconeMenu, etc.)
 ├── data/         # Dados de cores, formas, palavras e frases
 ├── games/        # Os 5 jogos educativos
 ├── pages/        # Telas de Login e Menu principal
 ├── styles/       # CSS modular (tokens, global, login-menu e jogos)
-└── utils/        # Helpers de voz (pt-BR), validação e sorteio
+└── utils/        # Helpers de voz (pt-BR), sons (Web Audio), validação e sorteio
 ```
