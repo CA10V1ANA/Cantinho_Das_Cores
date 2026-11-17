@@ -10,6 +10,67 @@
   overflow-x: hidden;
 }
 
+.cc.fonte-maior {
+  font-size: 21px;
+}
+
+.cc.fonte-maior .balao {
+  font-size: 1.25rem;
+}
+
+.cc.fonte-maior .nome {
+  font-size: 1.38rem;
+}
+
+.cc.fonte-maior .btn {
+  font-size: 1.32rem;
+}
+
+.cc.alto-contraste {
+  --tinta: #0F172A;
+  --azul: #1456D1;
+  --azul-sombra: #0A3791;
+  --verde: #147A40;
+  --verde-sombra: #0A4D27;
+  --amarelo: #FFD029;
+  --amarelo-sombra: #A67B00;
+  --creme: #FFFFFF;
+  --erro: #991B1B;
+  --borda-azul: #0F172A;
+  background: #F1F5F9;
+}
+
+.cc.alto-contraste .fundo {
+  opacity: 0.25;
+}
+
+.cc.alto-contraste .topo,
+.cc.alto-contraste .barra,
+.cc.alto-contraste .balao,
+.cc.alto-contraste .ficha,
+.cc.alto-contraste .login .cartao,
+.cc.alto-contraste .cores,
+.cc.alto-contraste .linha,
+.cc.alto-contraste .ligar,
+.cc.alto-contraste .grade2,
+.cc.alto-contraste .fala-card {
+  background: #FFFFFF;
+  border-color: #0F172A;
+}
+
+.cc.alto-contraste .item {
+  background: #FFFFFF !important;
+  border-color: #0F172A;
+}
+
+.cc.alto-contraste .feitos {
+  border: 2px solid #0F172A;
+}
+
+.cc.alto-contraste .titulo {
+  -webkit-text-stroke: 6px #FFFFFF;
+}
+
 .fundo {
   position: fixed;
   inset: 0;
@@ -39,7 +100,7 @@
   z-index: 1;
   width: 100%;
   max-width: 660px;
-  padding: 18px 16px 40px;
+  padding: 16px 16px 36px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -69,7 +130,7 @@
 }
 
 .titulo {
-  margin: 6px 0 16px;
+  margin: 4px 0 14px;
   text-align: center;
   font-size: clamp(2rem, 8vw, 3rem);
   -webkit-text-stroke: 8px #fff;
@@ -79,8 +140,10 @@
 }
 
 .titulo.titulo-jogo {
-  font-size: clamp(1.3rem, 5vw, 1.8rem);
-  -webkit-text-stroke: 6px #fff;
+  font-size: clamp(1.08rem, 4.3vw, 1.75rem);
+  -webkit-text-stroke: 5px #fff;
+  text-shadow: 0 2px 0 rgba(43, 58, 103, 0.14);
+  line-height: 1.2;
   margin: 0;
   flex: 1;
 }
@@ -90,8 +153,8 @@
   font-size: 1.2rem;
   border: 0;
   border-radius: 24px;
-  padding: 14px 28px;
-  min-height: 60px;
+  padding: 14px 26px;
+  min-height: 58px;
   background: var(--azul);
   color: #fff;
   box-shadow: 0 6px 0 var(--azul-sombra);
@@ -130,10 +193,17 @@
 }
 
 .btn.peq {
-  min-height: 44px;
-  padding: 8px 16px;
-  font-size: 1rem;
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 0.94rem;
+  border-radius: 18px;
   box-shadow: 0 4px 0 var(--amarelo-sombra);
+}
+
+.btn.peq.ativo {
+  background: var(--azul);
+  color: #fff;
+  box-shadow: 0 4px 0 var(--azul-sombra);
 }
 
 .btn.peq:active:not(:disabled) {
@@ -160,7 +230,7 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .nuvi-arte {
@@ -178,8 +248,8 @@
   background: #FFF6D6;
   border: 4px solid #FFD36B;
   border-radius: 24px;
-  padding: 12px 16px;
-  font-size: 1.15rem;
+  padding: 10px 16px;
+  font-size: 1.1rem;
   line-height: 1.35;
   box-shadow: 0 5px 0 rgba(43, 58, 103, 0.12);
 }
@@ -219,22 +289,23 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
-  background: rgba(255, 255, 255, 0.65);
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.95);
   border-radius: 28px;
   padding: 8px 12px;
-  box-shadow: 0 4px 0 rgba(43, 58, 103, 0.08);
+  box-shadow: 0 4px 0 rgba(43, 58, 103, 0.1);
 }
 
 .redondo {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
   border-radius: 50%;
   border: 0;
   background: var(--amarelo);
   box-shadow: 0 5px 0 var(--amarelo-sombra);
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -270,7 +341,7 @@
 .ficha {
   background: var(--creme);
   border: 5px solid #fff;
-  border-radius: 28px;
+  border-radius: 26px;
   min-width: 92px;
   min-height: 92px;
   display: grid;
@@ -326,6 +397,8 @@
 }
 
 .ficha.tente {
+  border-color: var(--erro);
+  background: #FFF0F0;
   animation: balanca 0.5s;
 }
 
@@ -387,7 +460,7 @@
 
 .confete {
   position: absolute;
-  top: -24px;
+  top:-24px;
   width: 12px;
   height: 20px;
   border-radius: 3px;
@@ -453,9 +526,39 @@
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
+  .tela {
+    padding: 12px 12px 24px;
+  }
+
+  .nuvi {
+    margin-bottom: 10px;
+  }
+
+  .nuvi-arte {
+    width: 78px;
+    height: 55px;
+  }
+
+  .topo {
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+  }
+
+  .estrelas {
+    font-size: 1.15rem;
+    letter-spacing: 1px;
+  }
+
+  .redondo {
+    width: 46px;
+    height: 46px;
+    font-size: 1.3rem;
+  }
+
   .ficha {
-    min-width: 76px;
-    min-height: 76px;
+    min-width: 74px;
+    min-height: 74px;
   }
 }
