@@ -2,18 +2,24 @@ import { useState, useEffect, useRef } from "react";
 import { PALAVRAS, PASTEIS } from "../data/jogosData";
 import { emb, pick } from "../utils/aleatorio";
 import { falar } from "../utils/voz";
+import { tocarAcerto, tocarErro, tocarSelecao } from "../utils/sons";
 import Casca from "../components/Casca";
 import Arrasta from "../components/Arrasta";
 
 export default function JogoLigar(p) {
+  const total = p.total ?? 5;
   const [it] = useState(() => {
-    const l = pick(PALAVRAS, 5).map((x, i) => ({ ...x, bg: PASTEIS[i] }));
+    const l = pick(PALAVRAS, total).map((x, i) => ({
+      ...x,
+      bg: PASTEIS[i % PASTEIS.length],
+    }));
     return { esq: emb(l), dir: emb(l) };
   });
   const [sel, setSel] = useState(null);
   const [feito, setFeito] = useState([]);
   const [tente, setTente] = useState(null);
   const [sobre, setSobre] = useState(null);
+  const [lida, setLida] = useState(null);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -23,16 +29,33 @@ export default function JogoLigar(p) {
     };
   }, []);
 
+  const agendar = (fn, ms) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(fn, ms);
+  };
+
   const ligar = (desenho, palavra) => {
-    if (!desenho || !palavra || feito.includes(palavra)) return;
+    if (!palavra || feito.includes(palavra)) return;
+    if (!desenho) {
+      setTente(null);
+      setLida(palavra);
+      tocarSelecao();
+      falar(palavra);
+      agendar(() => setLida(null), 650);
+      return;
+    }
     if (desenho === palavra) {
+      setLida(null);
+      setTente(null);
       setFeito((d) => [...d, palavra]);
+      tocarAcerto();
       falar(`Isso! ${palavra}`);
     } else {
+      setLida(null);
       setTente(palavra);
+      tocarErro();
       falar("Tente de novo");
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setTente(null), 700);
+      agendar(() => setTente(null), 700);
     }
     setSel(null);
   };
@@ -42,8 +65,12 @@ export default function JogoLigar(p) {
       {...p}
       titulo="Ligue ao nome"
       estrelas={feito.length}
-      atrasoVitoria={1100}
-      fala="Arraste o desenho até o nome dele."
+      atrasoVitoria={900}
+      fala={
+        sel
+          ? `Agora toque no nome de "${sel}" ou arraste!`
+          : "Arraste o desenho até o nome dele."
+      }
     >
       <div className="ligar">
         <div className="col">
@@ -59,6 +86,7 @@ export default function JogoLigar(p) {
                 style={pareado ? { background: x.bg } : undefined}
                 onToque={() => {
                   setSel(x.id);
+                  tocarSelecao();
                   falar(x.id);
                 }}
                 onSolta={(a) => ligar(x.id, a)}
@@ -68,7 +96,7 @@ export default function JogoLigar(p) {
             );
           })}
         </div>
-        <div className="col">
+        <div className={`col ${sel ? "alvos-ativos" : ""}`}>
           {it.dir.map((x) => {
             const pareado = feito.includes(x.id);
             return (
@@ -77,9 +105,10 @@ export default function JogoLigar(p) {
                 key={x.id}
                 data-alvo={x.id}
                 disabled={pareado}
+                aria-label={pareado ? `${x.id}, pareado` : `ouvir ou ligar ${x.id}`}
                 className={`ficha ${sobre === x.id ? "sobre" : ""} ${
                   tente === x.id ? "tente" : ""
-                } ${pareado ? "par" : ""}`}
+                } ${lida === x.id ? "sel" : ""} ${pareado ? "par" : ""}`}
                 style={pareado ? { background: x.bg } : undefined}
                 onClick={() => ligar(sel, x.id)}
               >

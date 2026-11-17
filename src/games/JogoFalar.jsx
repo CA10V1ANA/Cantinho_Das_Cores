@@ -2,16 +2,19 @@ import { useState, useEffect, useRef } from "react";
 import { FALA } from "../data/jogosData";
 import { pick } from "../utils/aleatorio";
 import { falar } from "../utils/voz";
+import { tocarAcerto } from "../utils/sons";
 import Casca from "../components/Casca";
 
 export default function JogoFalar(p) {
-  const [lista] = useState(() => pick(FALA, 5));
+  const total = p.total ?? 5;
+  const [lista] = useState(() => pick(FALA, total));
   const [e, setE] = useState(0);
   const [ativa, setAtiva] = useState(-1);
+  const [tocando, setTocando] = useState(false);
   const [ouviu, setOuviu] = useState(false);
   const [bloq, setBloq] = useState(false);
   const timersRef = useRef([]);
-  const w = lista[Math.min(e, 4)];
+  const w = lista[Math.min(e, total - 1)];
 
   const limparTimers = () => {
     timersRef.current.forEach(clearTimeout);
@@ -24,6 +27,7 @@ export default function JogoFalar(p) {
 
   const ouvir = () => {
     limparTimers();
+    setTocando(true);
     w.s.forEach((s, i) => {
       const id = setTimeout(() => {
         setAtiva(i);
@@ -34,6 +38,7 @@ export default function JogoFalar(p) {
     const idFim = setTimeout(() => {
       setAtiva(-1);
       falar(w.w);
+      setTocando(false);
       setOuviu(true);
     }, w.s.length * 900 + 200);
     timersRef.current.push(idFim);
@@ -43,7 +48,9 @@ export default function JogoFalar(p) {
     if (bloq) return;
     limparTimers();
     setAtiva(-1);
+    setTocando(false);
     setBloq(true);
+    tocarAcerto();
     falar(`Muito bem! Você falou ${w.w}`);
     const id = setTimeout(() => {
       setE((x) => x + 1);
@@ -78,8 +85,13 @@ export default function JogoFalar(p) {
         </div>
         <p className="frase">“{w.f}”</p>
         <div className="acoes">
-          <button type="button" className="btn" onClick={ouvir} disabled={bloq}>
-            🔊 Ouvir
+          <button
+            type="button"
+            className={`btn ${!ouviu && !tocando ? "guia-pulsar" : ""}`}
+            onClick={ouvir}
+            disabled={bloq}
+          >
+            {tocando ? "🔊 Ouvindo..." : "🔊 Ouvir"}
           </button>
           <button
             type="button"
@@ -90,6 +102,11 @@ export default function JogoFalar(p) {
             🗣️ Eu falei!
           </button>
         </div>
+        {!ouviu && (
+          <p className="dica-fala">
+            Escute primeiro para liberar o botão verde.
+          </p>
+        )}
       </div>
     </Casca>
   );
