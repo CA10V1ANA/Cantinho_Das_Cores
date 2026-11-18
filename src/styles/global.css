@@ -56,7 +56,6 @@
 .cc.alto-contraste .fala-card,
 .cc.alto-contraste .tabs-menu,
 .cc.alto-contraste .niveis-bar,
-.cc.alto-contraste .bloquinhos-controles,
 .cc.alto-contraste .frutas-hud,
 .cc.alto-contraste .frutas-tabuleiro,
 .cc.alto-contraste .pais-kpi,
@@ -80,16 +79,12 @@
   -webkit-text-stroke: 6px #FFFFFF;
 }
 
-.fundo,
-.fundo-fisica {
+.fundo {
   position: fixed;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
-}
-
-.fundo {
   pointer-events: none;
+  overflow: hidden;
 }
 
 .fundo-ceu {
@@ -122,21 +117,6 @@
 
 .tela.tela-pais {
   max-width: 880px;
-}
-
-.tela.tela-passante {
-  pointer-events: none;
-}
-
-.tela.tela-passante .barra,
-.tela.tela-passante .tabs-menu,
-.tela.tela-passante .nuvi,
-.tela.tela-passante .niveis-bar,
-.tela.tela-passante .menu,
-.tela.tela-passante .cartao,
-.tela.tela-passante .bloquinhos-controles,
-.tela.tela-passante .dica-fundo {
-  pointer-events: auto;
 }
 
 :where(.cc) button,

@@ -26,11 +26,6 @@ export default function Menu({
   onAlterarIdade,
   aba,
   onAlterarAba,
-  depthFisica,
-  onToggleDepthFisica,
-  onAdicionarBloquinho,
-  onChacoalharBloquinhos,
-  onReiniciarBloquinhos,
   historico,
   onCarregarExemplo,
   onLimparHistorico,
@@ -46,8 +41,10 @@ export default function Menu({
 
   const classesTela = [
     "tela",
-    aba === "pais" ? "tela-pais" : "tela-passante",
-  ].join(" ");
+    aba === "pais" ? "tela-pais" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <main className={classesTela}>
@@ -162,14 +159,6 @@ export default function Menu({
         </button>
         <button
           type="button"
-          className={`tab-btn ${aba === "bloquinhos" ? "ativa" : ""}`}
-          onClick={() => onAlterarAba("bloquinhos")}
-          aria-pressed={aba === "bloquinhos"}
-        >
-          🧩 Bloquinhos
-        </button>
-        <button
-          type="button"
           className={`tab-btn ${aba === "pais" ? "ativa" : ""}`}
           onClick={() => onAlterarAba("pais")}
           aria-pressed={aba === "pais"}
@@ -230,46 +219,6 @@ export default function Menu({
             ))}
           </div>
         </>
-      )}
-
-      {aba === "bloquinhos" && (
-        <div className="bloquinhos-controles">
-          <p className="bloquinhos-aviso">
-            Brinque com os bloquinhos nas cores do autismo: arraste, jogue ou toque no espaço vazio!
-          </p>
-          <div className="bloquinhos-acoes">
-            <button
-              type="button"
-              className="btn peq"
-              onClick={onAdicionarBloquinho}
-              disabled={calmo}
-            >
-              + Bloquinho
-            </button>
-            <button
-              type="button"
-              className="btn sec peq"
-              onClick={onChacoalharBloquinhos}
-              disabled={calmo}
-            >
-              🌀 Chacoalhar
-            </button>
-            <button
-              type="button"
-              className={`btn sec peq ${depthFisica === "2d" ? "ativo" : ""}`}
-              onClick={onToggleDepthFisica}
-            >
-              {depthFisica === "3d" ? "📦 Modo 3D" : "⬛ Modo 2D"}
-            </button>
-            <button
-              type="button"
-              className="btn sec peq"
-              onClick={onReiniciarBloquinhos}
-            >
-              🔄 Reiniciar
-            </button>
-          </div>
-        </div>
       )}
 
       {aba === "pais" && (

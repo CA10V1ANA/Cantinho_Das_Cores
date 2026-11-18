@@ -30,7 +30,7 @@ export default function Login({ onEntrar, onVisitante }) {
   };
 
   return (
-    <main className="tela login tela-passante">
+    <main className="tela login">
       <Titulo t="Cantinho das Cores" />
       <Nuvi fala="Oi! Um adulto pode entrar abaixo ou testar direto como visitante." />
       <form
@@ -99,9 +99,6 @@ export default function Login({ onEntrar, onVisitante }) {
           </button>
         </div>
       </form>
-      <p className="dica-fundo">
-        Arraste ou toque nos bloquinhos coloridos ao fundo para brincar!
-      </p>
     </main>
   );
 }

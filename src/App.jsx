@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   cancelarFala,
   definirNomeVoz,
@@ -11,16 +11,11 @@ import {
 } from "./utils/voz";
 import { definirEfeitosAtivos } from "./utils/sons";
 import {
-  CORES_AUTISMO,
-  CORES_AUTISMO_CONTRASTE,
-} from "./data/jogosData";
-import {
   gerarDadosExemplo,
   lerHistorico,
   limparHistorico,
   registrarPartida,
 } from "./utils/desempenho";
-import { ShapePhysics } from "./components/shape-physics";
 import Fundo from "./components/Fundo";
 import Login from "./pages/Login";
 import Menu from "./pages/Menu";
@@ -100,14 +95,11 @@ export default function App() {
   const [calmo, setCalmo] = useState(() => lerStorage("cc_calmo", false));
   const [totalRodadas, setTotalRodadas] = useState(() => lerStorage("cc_total", 5));
   const [idade, setIdade] = useState(() => lerStorage("cc_idade", "8"));
-  const [depthFisica, setDepthFisica] = useState("3d");
-  const [seedFisica, setSeedFisica] = useState(52490);
   const [chave, setChave] = useState(0);
   const [feitos, setFeitos] = useState(() => lerStorage("cc_feitos", {}));
   const [historico, setHistorico] = useState(() => lerHistorico());
   const [vozes, setVozes] = useState([]);
   const [vozSel, setVozSel] = useState(() => lerStorage("cc_voz", ""));
-  const shapeRef = useRef(null);
 
   useEffect(() => {
     definirVozAtiva(som);
@@ -221,7 +213,6 @@ export default function App() {
 
   const jogo = JOGOS.find((j) => j.id === tela);
   const JogoAtivo = jogo?.C;
-  const mostrarFisica = tela === "login" || (tela === "menu" && abaMenu !== "pais");
 
   const classesRaiz = [
     "cc",
@@ -234,25 +225,7 @@ export default function App() {
 
   return (
     <div className={classesRaiz}>
-      {mostrarFisica ? (
-        <div className="fundo-fisica">
-          <ShapePhysics
-            ref={shapeRef}
-            height="100svh"
-            depth={depthFisica}
-            colors={altoContraste ? CORES_AUTISMO_CONTRASTE : CORES_AUTISMO}
-            background={altoContraste ? "#F1F5F9" : "#CFEFFF"}
-            count={abaMenu === "bloquinhos" ? 26 : 16}
-            size={abaMenu === "bloquinhos" ? 46 : 38}
-            paused={calmo}
-            followCursor={!calmo}
-            seed={seedFisica}
-            aria-label="Bloquinhos interativos com as cores do autismo. Arraste um bloquinho ou clique no espaço livre para adicionar."
-          />
-        </div>
-      ) : (
-        <Fundo />
-      )}
+      <Fundo />
 
       {tela === "login" && (
         <Login
@@ -287,16 +260,6 @@ export default function App() {
           onAlterarAba={(novaAba) => {
             cancelarFala();
             setAbaMenu(novaAba);
-          }}
-          depthFisica={depthFisica}
-          onToggleDepthFisica={() =>
-            setDepthFisica((d) => (d === "3d" ? "2d" : "3d"))
-          }
-          onAdicionarBloquinho={() => shapeRef.current?.addShape()}
-          onChacoalharBloquinhos={() => shapeRef.current?.shake()}
-          onReiniciarBloquinhos={() => {
-            setSeedFisica((s) => s + 1);
-            shapeRef.current?.replay();
           }}
           historico={historico}
           onCarregarExemplo={() => setHistorico(gerarDadosExemplo())}
