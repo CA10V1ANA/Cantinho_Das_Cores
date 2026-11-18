@@ -168,6 +168,31 @@ export function obterFaixaEtaria(idade) {
   return FAIXAS_ETARIAS.find((f) => f.id === String(idade)) || FAIXAS_ETARIAS[0];
 }
 
+// Paleta clássica do autismo (azul, vermelho, amarelo e verde) em tons equilibrados
+export const CORES_AUTISMO = [
+  "#2D7FF9",
+  "#F25C54",
+  "#FFC93C",
+  "#E64840",
+  "#3CC46E",
+  "#4EA1FF",
+  "#1E6CE0",
+  "#FFD55A",
+  "#24A159",
+];
+
+export const CORES_AUTISMO_CONTRASTE = [
+  "#0B57D0",
+  "#C5221F",
+  "#E39B00",
+  "#B31412",
+  "#137333",
+  "#1967D2",
+  "#0D47A1",
+  "#F29900",
+  "#188038",
+];
+
 export const PASTEIS = ["#BFE3FF", "#C8F0D0", "#FFE9A8", "#E5D8FF", "#FFD3C2"];
 
 export const PAL = ["#F25C54", "#FF9A2E", "#FFC93C", "#3CC46E", "#3E8EF0", "#8E6CEF", "#FF6FB1"];

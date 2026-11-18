@@ -1,8 +1,14 @@
-import { useState } from "react";
-import { FAIXAS_ETARIAS, obterFaixaEtaria } from "../data/jogosData";
+import { useRef, useState } from "react";
+import {
+  CORES_AUTISMO,
+  CORES_AUTISMO_CONTRASTE,
+  FAIXAS_ETARIAS,
+  obterFaixaEtaria,
+} from "../data/jogosData";
 import Nuvi from "../components/Nuvi";
 import Titulo from "../components/Titulo";
 import IconeMenu from "../components/IconeMenu";
+import { ShapePhysics } from "../components/shape-physics";
 import PainelPais from "./PainelPais";
 
 export default function Menu({
@@ -26,6 +32,10 @@ export default function Menu({
   onAlterarIdade,
   aba,
   onAlterarAba,
+  depthFisica,
+  onToggleDepthFisica,
+  seedFisica,
+  onReiniciarBloquinhos,
   historico,
   onCarregarExemplo,
   onLimparHistorico,
@@ -37,6 +47,7 @@ export default function Menu({
   onSelecionarJogo,
 }) {
   const [abrirPrefs, setAbrirPrefs] = useState(false);
+  const shapeRef = useRef(null);
   const faixaAtual = obterFaixaEtaria(idade);
 
   const classesTela = [
@@ -159,6 +170,14 @@ export default function Menu({
         </button>
         <button
           type="button"
+          className={`tab-btn ${aba === "bloquinhos" ? "ativa" : ""}`}
+          onClick={() => onAlterarAba("bloquinhos")}
+          aria-pressed={aba === "bloquinhos"}
+        >
+          🧩 Bloquinhos
+        </button>
+        <button
+          type="button"
           className={`tab-btn ${aba === "pais" ? "ativa" : ""}`}
           onClick={() => onAlterarAba("pais")}
           aria-pressed={aba === "pais"}
@@ -219,6 +238,67 @@ export default function Menu({
             ))}
           </div>
         </>
+      )}
+
+      {aba === "bloquinhos" && (
+        <section className="bloquinhos-secao" aria-label="Bloquinhos interativos">
+          <div className="bloquinhos-controles">
+            <p className="bloquinhos-aviso">
+              Brinque com os bloquinhos nas cores do autismo: arraste, jogue ou toque no espaço vazio!
+            </p>
+            <div className="bloquinhos-acoes">
+              <button
+                type="button"
+                className="btn peq"
+                onClick={() => shapeRef.current?.addShape()}
+                disabled={calmo}
+              >
+                + Bloquinho
+              </button>
+              <button
+                type="button"
+                className="btn sec peq"
+                onClick={() => shapeRef.current?.shake()}
+                disabled={calmo}
+              >
+                🌀 Chacoalhar
+              </button>
+              <button
+                type="button"
+                className={`btn sec peq ${depthFisica === "2d" ? "ativo" : ""}`}
+                onClick={onToggleDepthFisica}
+              >
+                {depthFisica === "3d" ? "📦 Modo 3D" : "⬛ Modo 2D"}
+              </button>
+              <button
+                type="button"
+                className="btn sec peq"
+                onClick={() => {
+                  onReiniciarBloquinhos();
+                  shapeRef.current?.replay();
+                }}
+              >
+                🔄 Reiniciar
+              </button>
+            </div>
+          </div>
+
+          <div className="bloquinhos-palco">
+            <ShapePhysics
+              ref={shapeRef}
+              height="clamp(360px, 56vh, 520px)"
+              depth={depthFisica}
+              colors={altoContraste ? CORES_AUTISMO_CONTRASTE : CORES_AUTISMO}
+              background={altoContraste ? "#FFFFFF" : "#EAF6FF"}
+              count={22}
+              size={40}
+              paused={calmo}
+              followCursor={!calmo}
+              seed={seedFisica}
+              aria-label="Bloquinhos interativos com as cores do autismo. Arraste um bloquinho ou clique no espaço livre para adicionar."
+            />
+          </div>
+        </section>
       )}
 
       {aba === "pais" && (

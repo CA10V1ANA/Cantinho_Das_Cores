@@ -13,15 +13,16 @@ Aplicação web educativa em **React + Vite + CSS puro**, com foco em acessibili
 5. **Vamos falar** — Treino de fala por sílabas com leitura em voz suave e sílabas clicáveis.
 6. **Bloquinho de Frutas (Estilo Dots)** — Ligue duas ou mais frutinhas iguais vizinhas (ou feche um quadrado mágico) para colher as metas antes de acabar as jogadas.
 
-## Níveis por idade (8 a 10 anos) e Painel de Pais/Professores
+## Níveis por idade (8 a 10 anos), Bloquinhos do Autismo e Painel de Pais/Professores
 
 - **Níveis por faixa etária (`8 anos · Fácil`, `9 anos · Médio`, `10 anos · Avançado`):** ajustam o número de opções, formas geométricas, vocabulário, tamanho do tabuleiro de frutas e complexidade visual em todos os jogos.
+- **Aba `🧩 Bloquinhos`:** espaço interativo dedicado com o componente `ShapePhysics` (Canvas2D com física 3D/2D nas cores clássicas do autismo), mantendo o cenário original de céu, sol, nuvens e colinas ao fundo em todas as telas.
 - **Aba `📊 Pais e Professores`:** acompanhamento de evolução com filtros por jogo e por idade, gráfico temporal de acertos, matriz por jogo e dificuldade, leitura pedagógica automática, dados de exemplo e exportação CSV.
 
 ## Recursos de acessibilidade e UX
 
 - **Modo visitante e login flexível:** aceita qualquer e-mail válido com validação visual por campo ou acesso direto em 1 clique como visitante.
-- **Painel de ajustes no menu (`⚙️ Ajustes`):** fonte ampliada (`Aa Fonte A+`), **Alto contraste**, **Modo calmo** (remove confetes e animações), controle de efeitos sonoros (Web Audio API), ritmo de fala (**Fala calma / normal**), seleção de voz pt-BR e duração das partidas (**3 ou 5 rodadas**).
+- **Painel de ajustes no menu (`⚙️ Ajustes`):** fonte ampliada (`Aa Fonte A+`), **Alto contraste**, **Modo calmo** (remove confetes, animações e pausa a física dos bloquinhos), controle de efeitos sonoros (Web Audio API), ritmo de fala (**Fala calma / normal**), seleção de voz pt-BR e duração das partidas (**3 ou 5 rodadas**).
 - **Apoio multissensorial nos jogos:** ícone `✓` para daltonismo, dicas progressivas da Nuvi, leitura de palavras por toque e encaixe completo sem rolagem no celular.
 
 ## Como executar localmente

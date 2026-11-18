@@ -100,6 +100,8 @@ export default function App() {
   const [historico, setHistorico] = useState(() => lerHistorico());
   const [vozes, setVozes] = useState([]);
   const [vozSel, setVozSel] = useState(() => lerStorage("cc_voz", ""));
+  const [depthFisica, setDepthFisica] = useState("3d");
+  const [seedFisica, setSeedFisica] = useState(52490);
 
   useEffect(() => {
     definirVozAtiva(som);
@@ -261,6 +263,12 @@ export default function App() {
             cancelarFala();
             setAbaMenu(novaAba);
           }}
+          depthFisica={depthFisica}
+          onToggleDepthFisica={() =>
+            setDepthFisica((d) => (d === "3d" ? "2d" : "3d"))
+          }
+          seedFisica={seedFisica}
+          onReiniciarBloquinhos={() => setSeedFisica((s) => s + 1)}
           historico={historico}
           onCarregarExemplo={() => setHistorico(gerarDadosExemplo())}
           onLimparHistorico={() => setHistorico(limparHistorico())}
