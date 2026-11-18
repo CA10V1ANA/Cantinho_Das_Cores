@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { FAIXAS_ETARIAS, obterFaixaEtaria } from "../data/jogosData";
 import Nuvi from "../components/Nuvi";
 import Titulo from "../components/Titulo";
 import IconeMenu from "../components/IconeMenu";
+import PainelPais from "./PainelPais";
 
 export default function Menu({
   jogos,
@@ -20,6 +22,18 @@ export default function Menu({
   onToggleCalmo,
   totalRodadas,
   onAlterarTotal,
+  idade,
+  onAlterarIdade,
+  aba,
+  onAlterarAba,
+  depthFisica,
+  onToggleDepthFisica,
+  onAdicionarBloquinho,
+  onChacoalharBloquinhos,
+  onReiniciarBloquinhos,
+  historico,
+  onCarregarExemplo,
+  onLimparHistorico,
   onSair,
   vozes,
   vozSel,
@@ -28,9 +42,15 @@ export default function Menu({
   onSelecionarJogo,
 }) {
   const [abrirPrefs, setAbrirPrefs] = useState(false);
+  const faixaAtual = obterFaixaEtaria(idade);
+
+  const classesTela = [
+    "tela",
+    aba === "pais" ? "tela-pais" : "tela-passante",
+  ].join(" ");
 
   return (
-    <main className="tela">
+    <main className={classesTela}>
       <div className="barra">
         <div className="barra-topo">
           <span className="resp" title={resp}>
@@ -131,33 +151,134 @@ export default function Menu({
         )}
       </div>
 
-      <Titulo t="Cantinho das Cores" />
-      <Nuvi fala="Oi! Vamos brincar? Escolha um jogo." ouvivel />
+      <nav className="tabs-menu" aria-label="Navegação principal">
+        <button
+          type="button"
+          className={`tab-btn ${aba === "jogos" ? "ativa" : ""}`}
+          onClick={() => onAlterarAba("jogos")}
+          aria-pressed={aba === "jogos"}
+        >
+          🎮 Jogos
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${aba === "bloquinhos" ? "ativa" : ""}`}
+          onClick={() => onAlterarAba("bloquinhos")}
+          aria-pressed={aba === "bloquinhos"}
+        >
+          🧩 Bloquinhos
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${aba === "pais" ? "ativa" : ""}`}
+          onClick={() => onAlterarAba("pais")}
+          aria-pressed={aba === "pais"}
+        >
+          📊 Pais e Professores
+        </button>
+      </nav>
 
-      <div className="menu">
-        {jogos.map((j) => (
-          <button
-            type="button"
-            key={j.id}
-            className="item"
-            style={{ background: j.bg }}
-            onClick={() => onSelecionarJogo(j.id)}
-          >
-            <span className="ico">
-              <IconeMenu id={j.id} />
-            </span>
-            <span className="nome">{j.nome}</span>
-            {feitos[j.id] > 0 && (
-              <span
-                className="feitos"
-                aria-label={`${feitos[j.id]} partidas concluídas`}
+      {aba === "jogos" && (
+        <>
+          <Titulo t="Cantinho das Cores" />
+          <Nuvi fala="Oi! Escolha sua idade e um jogo para brincar." ouvivel />
+
+          <section className="niveis-bar" aria-label="Nível por idade">
+            <div className="niveis-topo">
+              <span className="niveis-rotulo">Idade / Dificuldade:</span>
+              <span className="niveis-desc">{faixaAtual.descricao}</span>
+            </div>
+            <div className="niveis-opcoes">
+              {FAIXAS_ETARIAS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={`nivel-chip ${String(idade) === f.id ? "ativo" : ""}`}
+                  onClick={() => onAlterarIdade(f.id)}
+                  aria-pressed={String(idade) === f.id}
+                >
+                  <strong>{f.idade}</strong>
+                  <span>{f.nivel}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="menu">
+            {jogos.map((j) => (
+              <button
+                type="button"
+                key={j.id}
+                className="item"
+                style={{ background: j.bg }}
+                onClick={() => onSelecionarJogo(j.id)}
               >
-                ★ {feitos[j.id]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+                <span className="ico">
+                  <IconeMenu id={j.id} />
+                </span>
+                <span className="nome">{j.nome}</span>
+                {j.sub && <span className="sub-jogo">{j.sub}</span>}
+                {feitos[j.id] > 0 && (
+                  <span
+                    className="feitos"
+                    aria-label={`${feitos[j.id]} partidas concluídas`}
+                  >
+                    ★ {feitos[j.id]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {aba === "bloquinhos" && (
+        <div className="bloquinhos-controles">
+          <p className="bloquinhos-aviso">
+            Brinque com os bloquinhos nas cores do autismo: arraste, jogue ou toque no espaço vazio!
+          </p>
+          <div className="bloquinhos-acoes">
+            <button
+              type="button"
+              className="btn peq"
+              onClick={onAdicionarBloquinho}
+              disabled={calmo}
+            >
+              + Bloquinho
+            </button>
+            <button
+              type="button"
+              className="btn sec peq"
+              onClick={onChacoalharBloquinhos}
+              disabled={calmo}
+            >
+              🌀 Chacoalhar
+            </button>
+            <button
+              type="button"
+              className={`btn sec peq ${depthFisica === "2d" ? "ativo" : ""}`}
+              onClick={onToggleDepthFisica}
+            >
+              {depthFisica === "3d" ? "📦 Modo 3D" : "⬛ Modo 2D"}
+            </button>
+            <button
+              type="button"
+              className="btn sec peq"
+              onClick={onReiniciarBloquinhos}
+            >
+              🔄 Reiniciar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {aba === "pais" && (
+        <PainelPais
+          historico={historico}
+          onCarregarExemplo={onCarregarExemplo}
+          onLimparHistorico={onLimparHistorico}
+        />
+      )}
     </main>
   );
 }

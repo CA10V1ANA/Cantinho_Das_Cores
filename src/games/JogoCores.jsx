@@ -6,24 +6,47 @@ import { tocarAcerto, tocarErro } from "../utils/sons";
 import Casca from "../components/Casca";
 import Arrasta from "../components/Arrasta";
 
-function gerarRodada() {
+function gerarRodada(idade) {
+  const nivel = String(idade);
+  const qtd = nivel === "10" ? 5 : nivel === "9" ? 4 : 3;
   const alvo = rnd(CORES);
-  const distintas = CORES.filter(
-    (c) => c.n !== alvo.n && !alvo.evitar?.includes(c.n)
-  );
-  const pool =
-    distintas.length >= 2 ? distintas : CORES.filter((c) => c.n !== alvo.n);
-  const outras = pick(pool, 2);
+
+  let outras;
+  if (nivel === "10") {
+    const parecidas = CORES.filter(
+      (c) => c.n !== alvo.n && alvo.evitar?.includes(c.n)
+    );
+    const restantes = emb(
+      CORES.filter((c) => c.n !== alvo.n && !parecidas.some((p) => p.n === c.n))
+    );
+    outras = [...emb(parecidas), ...restantes].slice(0, qtd - 1);
+  } else if (nivel === "9") {
+    outras = pick(
+      CORES.filter((c) => c.n !== alvo.n),
+      qtd - 1
+    );
+  } else {
+    const distintas = CORES.filter(
+      (c) => c.n !== alvo.n && !alvo.evitar?.includes(c.n)
+    );
+    const pool =
+      distintas.length >= qtd - 1 ? distintas : CORES.filter((c) => c.n !== alvo.n);
+    outras = pick(pool, qtd - 1);
+  }
+
   return { alvo, ops: emb([alvo, ...outras]) };
 }
 
 export default function JogoCores(p) {
   const total = p.total ?? 5;
+  const idade = p.idade ?? "8";
   const [e, setE] = useState(0);
-  const [r, setR] = useState(gerarRodada);
+  const [r, setR] = useState(() => gerarRodada(idade));
   const [ok, setOk] = useState(null);
   const [tente, setTente] = useState(null);
   const [sobre, setSobre] = useState(null);
+  const [acertos, setAcertos] = useState(0);
+  const [erros, setErros] = useState(0);
   const timersRef = useRef([]);
 
   useEffect(() => {
@@ -48,16 +71,18 @@ export default function JogoCores(p) {
     if (ok || !c) return;
     if (c.n === r.alvo.n) {
       setOk(c.n);
+      setAcertos((a) => a + 1);
       tocarAcerto();
       falar(`Muito bem! ${c.n}`);
       agendar(() => {
         const proximo = e + 1;
         setE(proximo);
         setOk(null);
-        if (proximo < total) setR(gerarRodada());
+        if (proximo < total) setR(gerarRodada(idade));
       }, 1500);
     } else {
       setTente(c.n);
+      setErros((x) => x + 1);
       tocarErro();
       falar("Tente de novo");
       agendar(() => setTente(null), 700);
@@ -69,9 +94,10 @@ export default function JogoCores(p) {
       {...p}
       titulo="Acerte a cor"
       estrelas={e}
+      estatisticas={{ acertos, erros }}
       fala={`Arraste a bolinha até o ${r.alvo.n}.`}
     >
-      <div className="cores">
+      <div className={`cores ${r.ops.length >= 4 ? "cores-muitas" : ""}`}>
         <div className="alvo">
           <span className="anel">
             <Arrasta

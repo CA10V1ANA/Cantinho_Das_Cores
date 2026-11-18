@@ -1,25 +1,40 @@
 import { useState, useEffect, useRef } from "react";
-import { PALAVRAS, PASTEIS } from "../data/jogosData";
+import { PALAVRAS, PALAVRAS_9, PALAVRAS_10, PASTEIS } from "../data/jogosData";
 import { emb, pick } from "../utils/aleatorio";
 import { falar } from "../utils/voz";
 import { tocarAcerto, tocarErro, tocarSelecao } from "../utils/sons";
 import Casca from "../components/Casca";
 import Arrasta from "../components/Arrasta";
 
+function gerarParesPorIdade(total, idade) {
+  const nivel = String(idade);
+  const fonte =
+    nivel === "10" ? PALAVRAS_10 : nivel === "9" ? PALAVRAS_9 : PALAVRAS;
+  const extras = nivel === "10" ? 2 : nivel === "9" ? 1 : 0;
+
+  const selecionadas = pick(fonte, Math.min(fonte.length, total + extras)).map((x, i) => ({
+    ...x,
+    bg: PASTEIS[i % PASTEIS.length],
+  }));
+
+  const ativas = selecionadas.slice(0, total);
+  return {
+    esq: emb(ativas),
+    dir: emb(selecionadas),
+  };
+}
+
 export default function JogoLigar(p) {
   const total = p.total ?? 5;
-  const [it] = useState(() => {
-    const l = pick(PALAVRAS, total).map((x, i) => ({
-      ...x,
-      bg: PASTEIS[i % PASTEIS.length],
-    }));
-    return { esq: emb(l), dir: emb(l) };
-  });
+  const idade = p.idade ?? "8";
+  const [it] = useState(() => gerarParesPorIdade(total, idade));
   const [sel, setSel] = useState(null);
   const [feito, setFeito] = useState([]);
   const [tente, setTente] = useState(null);
   const [sobre, setSobre] = useState(null);
   const [lida, setLida] = useState(null);
+  const [acertos, setAcertos] = useState(0);
+  const [erros, setErros] = useState(0);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -48,11 +63,13 @@ export default function JogoLigar(p) {
       setLida(null);
       setTente(null);
       setFeito((d) => [...d, palavra]);
+      setAcertos((a) => a + 1);
       tocarAcerto();
       falar(`Isso! ${palavra}`);
     } else {
       setLida(null);
       setTente(palavra);
+      setErros((x) => x + 1);
       tocarErro();
       falar("Tente de novo");
       agendar(() => setTente(null), 700);
@@ -66,6 +83,7 @@ export default function JogoLigar(p) {
       titulo="Ligue ao nome"
       estrelas={feito.length}
       atrasoVitoria={900}
+      estatisticas={{ acertos, erros }}
       fala={
         sel
           ? `Agora toque no nome de "${sel}" ou arraste!`

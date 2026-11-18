@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   cancelarFala,
   definirNomeVoz,
@@ -10,6 +10,17 @@ import {
   obterNomeVoz,
 } from "./utils/voz";
 import { definirEfeitosAtivos } from "./utils/sons";
+import {
+  CORES_AUTISMO,
+  CORES_AUTISMO_CONTRASTE,
+} from "./data/jogosData";
+import {
+  gerarDadosExemplo,
+  lerHistorico,
+  limparHistorico,
+  registrarPartida,
+} from "./utils/desempenho";
+import { ShapePhysics } from "./components/shape-physics";
 import Fundo from "./components/Fundo";
 import Login from "./pages/Login";
 import Menu from "./pages/Menu";
@@ -18,6 +29,7 @@ import JogoEncaixe from "./games/JogoEncaixe";
 import JogoLigar from "./games/JogoLigar";
 import JogoCorForma from "./games/JogoCorForma";
 import JogoFalar from "./games/JogoFalar";
+import JogoFrutas from "./games/JogoFrutas";
 
 const JOGOS = [
   {
@@ -50,6 +62,13 @@ const JOGOS = [
     bg: "linear-gradient(160deg,#FFE5D6,#FFA784)",
     C: JogoFalar,
   },
+  {
+    id: "frutas",
+    nome: "Bloquinho de Frutas",
+    sub: "Estilo Dots",
+    bg: "linear-gradient(160deg,#FFE2E2,#FF9E99)",
+    C: JogoFrutas,
+  },
 ];
 
 function lerStorage(chave, fallback) {
@@ -72,6 +91,7 @@ function gravarStorage(chave, valor) {
 export default function App() {
   const [resp, setResp] = useState(() => lerStorage("cc_resp", ""));
   const [tela, setTela] = useState(() => (lerStorage("cc_resp", "") ? "menu" : "login"));
+  const [abaMenu, setAbaMenu] = useState("jogos");
   const [som, setSom] = useState(() => lerStorage("cc_som", true));
   const [efeitos, setEfeitos] = useState(() => lerStorage("cc_efeitos", true));
   const [velocidade, setVelocidade] = useState(() => lerStorage("cc_vel", "calma"));
@@ -79,10 +99,15 @@ export default function App() {
   const [altoContraste, setAltoContraste] = useState(() => lerStorage("cc_contraste", false));
   const [calmo, setCalmo] = useState(() => lerStorage("cc_calmo", false));
   const [totalRodadas, setTotalRodadas] = useState(() => lerStorage("cc_total", 5));
+  const [idade, setIdade] = useState(() => lerStorage("cc_idade", "8"));
+  const [depthFisica, setDepthFisica] = useState("3d");
+  const [seedFisica, setSeedFisica] = useState(52490);
   const [chave, setChave] = useState(0);
   const [feitos, setFeitos] = useState(() => lerStorage("cc_feitos", {}));
+  const [historico, setHistorico] = useState(() => lerHistorico());
   const [vozes, setVozes] = useState([]);
   const [vozSel, setVozSel] = useState(() => lerStorage("cc_voz", ""));
+  const shapeRef = useRef(null);
 
   useEffect(() => {
     definirVozAtiva(som);
@@ -114,6 +139,10 @@ export default function App() {
   useEffect(() => {
     gravarStorage("cc_total", totalRodadas);
   }, [totalRodadas]);
+
+  useEffect(() => {
+    gravarStorage("cc_idade", idade);
+  }, [idade]);
 
   useEffect(() => {
     if (vozSel) {
@@ -149,6 +178,7 @@ export default function App() {
   const entrar = (email) => {
     setResp(email);
     gravarStorage("cc_resp", email);
+    setAbaMenu("jogos");
     setTela("menu");
   };
 
@@ -171,16 +201,28 @@ export default function App() {
     setTela(id);
   };
 
-  const registrarFim = (id) => {
-    setFeitos((f) => {
-      const atualizado = { ...f, [id]: (f[id] || 0) + 1 };
-      gravarStorage("cc_feitos", atualizado);
-      return atualizado;
+  const gravarSessao = (id, resumo, incrementarConcluidos) => {
+    const atualizadoHist = registrarPartida({
+      id: `sessao-${id}-${chave}`,
+      jogoId: id,
+      idade,
+      ...resumo,
     });
+    setHistorico(atualizadoHist);
+
+    if (incrementarConcluidos) {
+      setFeitos((f) => {
+        const atualizado = { ...f, [id]: (f[id] || 0) + 1 };
+        gravarStorage("cc_feitos", atualizado);
+        return atualizado;
+      });
+    }
   };
 
   const jogo = JOGOS.find((j) => j.id === tela);
   const JogoAtivo = jogo?.C;
+  const mostrarFisica = tela === "login" || (tela === "menu" && abaMenu !== "pais");
+
   const classesRaiz = [
     "cc",
     fonteMaior ? "fonte-maior" : "",
@@ -192,13 +234,33 @@ export default function App() {
 
   return (
     <div className={classesRaiz}>
-      <Fundo />
+      {mostrarFisica ? (
+        <div className="fundo-fisica">
+          <ShapePhysics
+            ref={shapeRef}
+            height="100svh"
+            depth={depthFisica}
+            colors={altoContraste ? CORES_AUTISMO_CONTRASTE : CORES_AUTISMO}
+            background={altoContraste ? "#F1F5F9" : "#CFEFFF"}
+            count={abaMenu === "bloquinhos" ? 26 : 16}
+            size={abaMenu === "bloquinhos" ? 46 : 38}
+            paused={calmo}
+            followCursor={!calmo}
+            seed={seedFisica}
+            aria-label="Bloquinhos interativos com as cores do autismo. Arraste um bloquinho ou clique no espaço livre para adicionar."
+          />
+        </div>
+      ) : (
+        <Fundo />
+      )}
+
       {tela === "login" && (
         <Login
           onEntrar={entrar}
           onVisitante={() => entrar("visitante")}
         />
       )}
+
       {tela === "menu" && (
         <Menu
           jogos={JOGOS}
@@ -219,6 +281,26 @@ export default function App() {
           onToggleCalmo={() => setCalmo((c) => !c)}
           totalRodadas={totalRodadas}
           onAlterarTotal={(n) => setTotalRodadas(n)}
+          idade={idade}
+          onAlterarIdade={(novaIdade) => setIdade(novaIdade)}
+          aba={abaMenu}
+          onAlterarAba={(novaAba) => {
+            cancelarFala();
+            setAbaMenu(novaAba);
+          }}
+          depthFisica={depthFisica}
+          onToggleDepthFisica={() =>
+            setDepthFisica((d) => (d === "3d" ? "2d" : "3d"))
+          }
+          onAdicionarBloquinho={() => shapeRef.current?.addShape()}
+          onChacoalharBloquinhos={() => shapeRef.current?.shake()}
+          onReiniciarBloquinhos={() => {
+            setSeedFisica((s) => s + 1);
+            shapeRef.current?.replay();
+          }}
+          historico={historico}
+          onCarregarExemplo={() => setHistorico(gerarDadosExemplo())}
+          onLimparHistorico={() => setHistorico(limparHistorico())}
           onSair={sair}
           vozes={vozes}
           vozSel={vozSel}
@@ -227,11 +309,13 @@ export default function App() {
           onSelecionarJogo={selecionarJogo}
         />
       )}
+
       {JogoAtivo && (
         <main className="tela">
           <JogoAtivo
-            key={`${chave}-${totalRodadas}`}
+            key={`${chave}-${totalRodadas}-${idade}`}
             total={totalRodadas}
+            idade={idade}
             calmo={calmo}
             onSair={() => {
               cancelarFala();
@@ -241,7 +325,8 @@ export default function App() {
               cancelarFala();
               setChave((c) => c + 1);
             }}
-            onFim={() => registrarFim(jogo.id)}
+            onFim={(resumo) => gravarSessao(jogo.id, resumo, true)}
+            onParcial={(resumo) => gravarSessao(jogo.id, resumo, false)}
           />
         </main>
       )}

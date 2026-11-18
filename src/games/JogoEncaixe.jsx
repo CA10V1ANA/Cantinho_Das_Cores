@@ -7,17 +7,41 @@ import Casca from "../components/Casca";
 import Arrasta from "../components/Arrasta";
 import Forma from "../components/Forma";
 
+function gerarTabuleiroEncaixe(total, idade) {
+  const nivel = String(idade);
+  const poolFormas = nivel === "8" ? FORMAS.slice(0, 6) : FORMAS;
+  const extras = nivel === "10" ? 2 : nivel === "9" ? 1 : 0;
+  const formasSelecionadas = pick(poolFormas, Math.min(poolFormas.length, total + extras));
+  const coresSelecionadas = pick(CORES, formasSelecionadas.length);
+
+  const pecasAtivas = formasSelecionadas.slice(0, total).map((f, i) => ({
+    f,
+    cor: coresSelecionadas[i].h,
+  }));
+
+  const buracosTodos = formasSelecionadas.map((f, i) => ({
+    f,
+    cor: nivel === "8" ? coresSelecionadas[i].h : "#4E6396",
+    corReal: coresSelecionadas[i].h,
+  }));
+
+  return {
+    pecas: emb(pecasAtivas),
+    buracos: emb(buracosTodos),
+    semDicaCor: nivel !== "8",
+  };
+}
+
 export default function JogoEncaixe(p) {
   const total = p.total ?? 5;
-  const [it] = useState(() => {
-    const cols = pick(CORES, total);
-    const l = pick(FORMAS, total).map((f, i) => ({ f, cor: cols[i].h }));
-    return { pecas: emb(l), buracos: emb(l) };
-  });
+  const idade = p.idade ?? "8";
+  const [it] = useState(() => gerarTabuleiroEncaixe(total, idade));
   const [sel, setSel] = useState(null);
   const [feito, setFeito] = useState([]);
   const [tente, setTente] = useState(null);
   const [sobre, setSobre] = useState(null);
+  const [acertos, setAcertos] = useState(0);
+  const [erros, setErros] = useState(0);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -31,11 +55,13 @@ export default function JogoEncaixe(p) {
     if (!peca || !alvo || feito.includes(alvo)) return;
     if (peca === alvo) {
       setFeito((d) => [...d, alvo]);
+      setAcertos((a) => a + 1);
       setSel(null);
       tocarAcerto();
       falar(`Encaixou! ${alvo}`);
     } else {
       setTente(alvo);
+      setErros((x) => x + 1);
       tocarErro();
       falar("Tente de novo");
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -49,10 +75,13 @@ export default function JogoEncaixe(p) {
       titulo="Encaixe as formas"
       estrelas={feito.length}
       atrasoVitoria={900}
+      estatisticas={{ acertos, erros }}
       fala={
         sel
           ? `Agora toque no buraco de ${sel} ou arraste!`
-          : "Arraste cada peça até o buraco com o mesmo formato."
+          : it.semDicaCor
+            ? "Observe o contorno e encaixe cada forma!"
+            : "Arraste cada peça até o buraco com o mesmo formato."
       }
     >
       <div className="linha encaixe-pecas">
@@ -91,7 +120,11 @@ export default function JogoEncaixe(p) {
               } ${sobre === b.f.n ? "sobre" : ""}`}
               onClick={() => encaixar(sel, b.f.n)}
             >
-              <Forma f={b.f} cor={b.cor} oco={!encaixado} />
+              <Forma
+                f={b.f}
+                cor={encaixado ? b.corReal : b.cor}
+                oco={!encaixado}
+              />
             </button>
           );
         })}

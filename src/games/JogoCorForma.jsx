@@ -6,34 +6,87 @@ import { tocarAcerto, tocarErro } from "../utils/sons";
 import Casca from "../components/Casca";
 import Forma from "../components/Forma";
 
-function gerarRodada() {
-  const f = rnd(FORMAS);
+function gerarRodada(idade) {
+  const nivel = String(idade);
+  const poolFormas = nivel === "8" ? FORMAS.slice(0, 6) : FORMAS;
+  const f = rnd(poolFormas);
   const c = rnd(CORES);
-  const f2 = rnd(FORMAS.filter((x) => x.n !== f.n));
-  const c2 = rnd(
+
+  const outrasFormas = emb(poolFormas.filter((x) => x.n !== f.n));
+  const f2 = outrasFormas[0];
+  const f3 = outrasFormas[1] || outrasFormas[0];
+
+  const coresDistintas = emb(
     CORES.filter((x) => x.n !== c.n && !c.evitar?.includes(x.n))
   );
-  const f3 = rnd(FORMAS.filter((x) => x.n !== f.n && x.n !== f2.n));
-  const c3 = rnd(CORES.filter((x) => x.n !== c.n && x.n !== c2.n));
+  const coresProximas = emb(
+    CORES.filter((x) => x.n !== c.n && c.evitar?.includes(x.n))
+  );
+  const outrasCores =
+    nivel === "10"
+      ? [...coresProximas, ...coresDistintas]
+      : [...coresDistintas, ...coresProximas];
+
+  const c2 = outrasCores[0];
+  const c3 = outrasCores[1] || outrasCores[0];
+
+  if (nivel === "8") {
+    return {
+      f,
+      c,
+      ops: emb([
+        { f, c },
+        { f, c: c2 },
+        { f: f2, c },
+        { f: f3, c: c3 },
+      ]),
+    };
+  }
+
+  if (nivel === "9") {
+    const f4 = outrasFormas[2] || f2;
+    const c4 = outrasCores[2] || c2;
+    return {
+      f,
+      c,
+      ops: emb([
+        { f, c },
+        { f, c: c2 },
+        { f, c: c3 },
+        { f: f2, c },
+        { f: f3, c: c2 },
+        { f: f4, c: c4 },
+      ]),
+    };
+  }
+
+  // Nível 10 anos: todos os distratores compartilham a cor OU a forma do alvo
+  const c4 = outrasCores[2] || c2;
+  const f4 = outrasFormas[2] || f2;
   return {
     f,
     c,
     ops: emb([
       { f, c },
       { f, c: c2 },
+      { f, c: c3 },
       { f: f2, c },
-      { f: f3, c: c3 },
+      { f: f3, c },
+      { f: f4, c: c4 === c ? c2 : c },
     ]),
   };
 }
 
 export default function JogoCorForma(p) {
   const total = p.total ?? 5;
+  const idade = p.idade ?? "8";
   const [e, setE] = useState(0);
-  const [r, setR] = useState(gerarRodada);
+  const [r, setR] = useState(() => gerarRodada(idade));
   const [ok, setOk] = useState(null);
   const [tente, setTente] = useState(null);
   const [dica, setDica] = useState("");
+  const [acertos, setAcertos] = useState(0);
+  const [erros, setErros] = useState(0);
   const timersRef = useRef([]);
 
   const corAlvo = r.f.art === "o" ? r.c.n : r.c.f;
@@ -63,16 +116,18 @@ export default function JogoCorForma(p) {
     if (o.f.n === r.f.n && o.c.n === r.c.n) {
       setOk(k);
       setDica("");
+      setAcertos((a) => a + 1);
       tocarAcerto();
       falar("Muito bem!");
       agendar(() => {
         const proximo = e + 1;
         setE(proximo);
         setOk(null);
-        if (proximo < total) setR(gerarRodada());
+        if (proximo < total) setR(gerarRodada(idade));
       }, 1400);
     } else {
       setTente(k);
+      setErros((x) => x + 1);
       tocarErro();
       let textoDica = `Quase! Procure ${r.f.art} ${r.f.n} ${corAlvo}.`;
       if (o.f.n === r.f.n) {
@@ -87,8 +142,14 @@ export default function JogoCorForma(p) {
   };
 
   return (
-    <Casca {...p} titulo="Cor e forma" estrelas={e} fala={dica || frase}>
-      <div className="grade2">
+    <Casca
+      {...p}
+      titulo="Cor e forma"
+      estrelas={e}
+      estatisticas={{ acertos, erros }}
+      fala={dica || frase}
+    >
+      <div className={`grade2 ${r.ops.length > 4 ? "grade3" : ""}`}>
         {r.ops.map((o) => {
           const k = `${o.f.n}-${o.c.n}`;
           const nomeCor = o.f.art === "o" ? o.c.n : o.c.f;
@@ -103,7 +164,7 @@ export default function JogoCorForma(p) {
               }`}
               onClick={() => escolher(o)}
             >
-              <Forma f={o.f} cor={o.c.h} tam={96} />
+              <Forma f={o.f} cor={o.c.h} tam={r.ops.length > 4 ? 80 : 96} />
               {acertou && (
                 <span className="selo-ok-card" aria-hidden="true">
                   ✓

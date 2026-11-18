@@ -49,6 +49,22 @@ export function tocarSelecao() {
   tocarNota(440, 0, 0.06, 0.05, "sine");
 }
 
+const NOTAS_COMBO = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51];
+
+export function tocarCombo(passo = 0) {
+  if (!efeitosAtivos) return;
+  const freq = NOTAS_COMBO[Math.min(Math.max(0, passo), NOTAS_COMBO.length - 1)];
+  tocarNota(freq, 0, 0.11, 0.06, "sine");
+}
+
+export function tocarQuadrado() {
+  if (!efeitosAtivos) return;
+  tocarNota(523.25, 0, 0.24, 0.07, "triangle");
+  tocarNota(659.25, 0.05, 0.24, 0.07, "triangle");
+  tocarNota(783.99, 0.1, 0.28, 0.08, "triangle");
+  tocarNota(1046.5, 0.16, 0.34, 0.08, "sine");
+}
+
 export function tocarAcerto() {
   if (!efeitosAtivos) return;
   tocarNota(523.25, 0, 0.14, 0.08, "triangle");

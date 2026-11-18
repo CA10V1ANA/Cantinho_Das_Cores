@@ -53,7 +53,16 @@
 .cc.alto-contraste .linha,
 .cc.alto-contraste .ligar,
 .cc.alto-contraste .grade2,
-.cc.alto-contraste .fala-card {
+.cc.alto-contraste .fala-card,
+.cc.alto-contraste .tabs-menu,
+.cc.alto-contraste .niveis-bar,
+.cc.alto-contraste .bloquinhos-controles,
+.cc.alto-contraste .frutas-hud,
+.cc.alto-contraste .frutas-tabuleiro,
+.cc.alto-contraste .pais-kpi,
+.cc.alto-contraste .pais-bloco,
+.cc.alto-contraste .pais-filtros,
+.cc.alto-contraste .pais-cabecalho {
   background: #FFFFFF;
   border-color: #0F172A;
 }
@@ -71,12 +80,16 @@
   -webkit-text-stroke: 6px #FFFFFF;
 }
 
-.fundo {
+.fundo,
+.fundo-fisica {
   position: fixed;
   inset: 0;
   z-index: 0;
-  pointer-events: none;
   overflow: hidden;
+}
+
+.fundo {
+  pointer-events: none;
 }
 
 .fundo-ceu {
@@ -105,6 +118,25 @@
   flex-direction: column;
   align-items: center;
   animation: entra 0.28s ease-out;
+}
+
+.tela.tela-pais {
+  max-width: 880px;
+}
+
+.tela.tela-passante {
+  pointer-events: none;
+}
+
+.tela.tela-passante .barra,
+.tela.tela-passante .tabs-menu,
+.tela.tela-passante .nuvi,
+.tela.tela-passante .niveis-bar,
+.tela.tela-passante .menu,
+.tela.tela-passante .cartao,
+.tela.tela-passante .bloquinhos-controles,
+.tela.tela-passante .dica-fundo {
+  pointer-events: auto;
 }
 
 :where(.cc) button,
@@ -331,6 +363,19 @@
   text-shadow: 0 2px 0 rgba(43, 58, 103, 0.24);
 }
 
+.nivel-badge {
+  flex-shrink: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: #E8F2FF;
+  border: 2px solid var(--borda-azul);
+  color: var(--tinta);
+  white-space: nowrap;
+}
+
 /* Peças arrastáveis e alvos */
 .ficha,
 .cru {
@@ -422,6 +467,29 @@
   color: #FFB703;
   letter-spacing: 6px;
   text-shadow: 0 4px 0 rgba(43, 58, 103, 0.2);
+}
+
+.fim-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fim-tag {
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid var(--borda-azul);
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-weight: 700;
+  font-size: 0.94rem;
+}
+
+.fim-tag.ok {
+  background: #E6F8EC;
+  border-color: var(--verde);
+  color: #16753E;
 }
 
 .vitoria {

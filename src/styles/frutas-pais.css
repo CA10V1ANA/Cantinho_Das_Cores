@@ -1,0 +1,505 @@
+/* Jogo 6: Bloquinho de Frutas (estilo Two Dots) */
+.frutas-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.frutas-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.92);
+  border: 4px solid #fff;
+  border-radius: 26px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 0 rgba(43, 58, 103, 0.12);
+}
+
+.frutas-metas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fruta-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 3px solid var(--borda-azul);
+  border-radius: 18px;
+  padding: 4px 10px 4px 6px;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.fruta-meta.ok {
+  background: #E6F8EC;
+}
+
+.fruta-meta-ico {
+  display: grid;
+  place-items: center;
+}
+
+.frutas-jogadas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 78px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  background: #E8F2FF;
+  border: 2px solid var(--borda-azul);
+  line-height: 1.1;
+}
+
+.frutas-jogadas.alerta {
+  background: #FFF0EE;
+  border-color: var(--erro);
+  color: var(--erro);
+}
+
+.jogadas-rotulo {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.jogadas-valor {
+  font-family: var(--fonte-titulo);
+  font-size: 1.45rem;
+}
+
+.frutas-tabuleiro {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  aspect-ratio: 1;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  background: linear-gradient(160deg, #FFF5EC, #FFD9D4);
+  border: 5px solid #fff;
+  border-radius: 32px;
+  box-shadow: 0 8px 0 rgba(43, 58, 103, 0.15);
+  touch-action: none;
+  user-select: none;
+}
+
+.frutas-linhas {
+  position: absolute;
+  inset: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.fruta-peca {
+  position: relative;
+  z-index: 3;
+  width: 88%;
+  height: 88%;
+  margin: auto;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  padding: 4px;
+  display: grid;
+  place-items: center;
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.fruta-peca:hover {
+  transform: scale(1.04);
+}
+
+.fruta-peca.sel {
+  transform: scale(1.12);
+  z-index: 4;
+}
+
+.fruta-peca.quadrado-hit {
+  transform: scale(1.08);
+  z-index: 4;
+}
+
+.fruta-peca.caindo {
+  animation: fruta-cai 0.28s cubic-bezier(0.22, 1.25, 0.4, 1);
+}
+
+.fruta-peca.tente {
+  animation: balanca 0.45s;
+}
+
+.fruta-svg {
+  display: block;
+  pointer-events: none;
+}
+
+.frutas-controles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+@keyframes fruta-cai {
+  from {
+    opacity: 0.4;
+    transform: translateY(-22px) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Painel para Pais e Professores */
+.pais-painel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pais-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 4px solid #fff;
+  border-radius: 26px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 0 rgba(43, 58, 103, 0.12);
+}
+
+.pais-titulo {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 1.45rem;
+}
+
+.pais-subtitulo {
+  margin: 2px 0 0;
+  font-size: 0.94rem;
+  opacity: 0.85;
+}
+
+.pais-acoes-dados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn.peq.perigo {
+  background: var(--erro);
+  color: #fff;
+  box-shadow: 0 4px 0 #6B231B;
+}
+
+.pais-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 3px solid #fff;
+  border-radius: 22px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 0 rgba(43, 58, 103, 0.1);
+}
+
+.pais-filtro-campo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.94rem;
+}
+
+.pais-filtro-campo select {
+  padding: 7px 12px;
+  border-radius: 14px;
+  border: 2px solid var(--borda-azul);
+  background: #fff;
+}
+
+.pais-filtro-idades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pais-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.pais-kpi {
+  background: rgba(255, 255, 255, 0.95);
+  border: 3px solid #fff;
+  border-radius: 22px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  box-shadow: 0 5px 0 rgba(43, 58, 103, 0.1);
+}
+
+.kpi-rotulo {
+  font-size: 0.82rem;
+  font-weight: 700;
+  opacity: 0.78;
+}
+
+.kpi-valor {
+  font-family: var(--fonte-titulo);
+  font-size: 1.85rem;
+  line-height: 1.1;
+}
+
+.kpi-valor.kpi-texto {
+  font-size: 1.12rem;
+  line-height: 1.25;
+}
+
+.kpi-detalhe {
+  font-size: 0.82rem;
+  opacity: 0.8;
+}
+
+.kpi-badge {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #E8F2FF;
+  color: var(--azul-sombra);
+}
+
+.kpi-badge.melhora {
+  background: #E6F8EC;
+  color: #16753E;
+}
+
+.kpi-badge.reforco {
+  background: #FFF0EE;
+  color: var(--erro);
+}
+
+.kpi-badge.estavel {
+  background: #FFF6D6;
+  color: #8A6200;
+}
+
+.pais-bloco {
+  background: rgba(255, 255, 255, 0.95);
+  border: 4px solid #fff;
+  border-radius: 26px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 0 rgba(43, 58, 103, 0.1);
+}
+
+.pais-bloco h3 {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 1.16rem;
+}
+
+.pais-bloco-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pais-legenda {
+  font-size: 0.84rem;
+  font-weight: 700;
+  opacity: 0.72;
+}
+
+.pais-insights {
+  background: #FFFDF2;
+}
+
+.pais-insights ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pais-grafico-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pais-grafico {
+  width: 100%;
+  min-width: 320px;
+  height: auto;
+  display: block;
+}
+
+.pais-matriz {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.matriz-card {
+  background: #F8FBFF;
+  border: 2px solid #DCEBFF;
+  border-radius: 18px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.matriz-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.matriz-barra-fundo {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(43, 58, 103, 0.12);
+  overflow: hidden;
+}
+
+.matriz-barra-preench {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2D7FF9, #24A159);
+  transition: width 0.3s ease;
+}
+
+.matriz-numeros {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+}
+
+.matriz-idades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.idade-pill {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(43, 58, 103, 0.08);
+  opacity: 0.72;
+}
+
+.idade-pill.ativa {
+  background: #E8F2FF;
+  color: var(--tinta);
+  opacity: 1;
+}
+
+.pais-tabela-wrap {
+  overflow-x: auto;
+}
+
+.pais-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.pais-tabela th,
+.pais-tabela td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(43, 58, 103, 0.1);
+}
+
+.pais-tabela th {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.72;
+}
+
+.num-ok {
+  color: #16753E;
+  font-weight: 700;
+}
+
+.tag-demo {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #FFF3C4;
+  color: #8A6200;
+}
+
+.cc.alto-contraste .matriz-card {
+  background: #FFFFFF;
+  border-color: #0F172A;
+}
+
+.cc.alto-contraste .fruta-peca {
+  border-color: #0F172A !important;
+}
+
+@media (max-width: 700px) {
+  .pais-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pais-matriz {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .frutas-tabuleiro {
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .frutas-linhas {
+    inset: 8px;
+    width: calc(100% - 16px);
+    height: calc(100% - 16px);
+  }
+
+  .grade2.grade3 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .grade2.grade3 .ficha {
+    min-height: 92px;
+  }
+}

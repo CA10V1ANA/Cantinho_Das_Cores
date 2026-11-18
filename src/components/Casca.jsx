@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cancelarFala, falar } from "../utils/voz";
 import { tocarVitoria } from "../utils/sons";
 import Titulo from "./Titulo";
@@ -11,17 +11,26 @@ export default function Casca({
   titulo,
   estrelas,
   total = 5,
+  idade = "8",
   calmo = false,
   fala,
   atrasoVitoria = 0,
+  estatisticas,
   onSair,
   onNovo,
   onFim,
+  onParcial,
   children,
 }) {
   const fim = estrelas >= total;
   const [vitoria, setVitoria] = useState(false);
   const [final, setFinal] = useState(false);
+  const inicioRef = useRef(null);
+  const registradoRef = useRef(false);
+
+  useEffect(() => {
+    inicioRef.current = Date.now();
+  }, []);
 
   useEffect(() => {
     if (!fim) return;
@@ -42,8 +51,35 @@ export default function Casca({
     };
   }, [fim, atrasoVitoria]);
 
+  const montarResumo = (concluida) => {
+    const duracaoSeg = inicioRef.current
+      ? Math.max(1, Math.round((Date.now() - inicioRef.current) / 1000))
+      : 1;
+    return {
+      acertos: estatisticas?.acertos ?? estrelas,
+      erros: estatisticas?.erros ?? 0,
+      estrelas: Math.min(estrelas, total),
+      totalEstrelas: total,
+      concluida,
+      duracaoSeg,
+    };
+  };
+
+  const finalizar = () => {
+    if (registradoRef.current) return;
+    registradoRef.current = true;
+    onFim?.(montarResumo(true));
+  };
+
   const sair = () => {
     cancelarFala();
+    if (!registradoRef.current) {
+      const resumo = montarResumo(false);
+      if (resumo.acertos + resumo.erros > 0) {
+        registradoRef.current = true;
+        onParcial?.(resumo);
+      }
+    }
     onSair();
   };
 
@@ -59,11 +95,23 @@ export default function Casca({
           🏠
         </button>
         <Titulo t={titulo} tag="h1" className="titulo-jogo" />
+        <span className="nivel-badge" aria-label={`Nível ${idade} anos`}>
+          {idade} anos
+        </span>
         <Estrelas n={estrelas} total={total} />
       </header>
       {vitoria && <Vitoria calmo={calmo} />}
       {fim ? (
-        final && <Fim total={total} onNovo={onNovo} onSair={sair} onFim={onFim} />
+        final && (
+          <Fim
+            total={total}
+            idade={idade}
+            estatisticas={estatisticas}
+            onNovo={onNovo}
+            onSair={sair}
+            onFim={finalizar}
+          />
+        )
       ) : (
         <>
           <Nuvi fala={fala} ouvivel />

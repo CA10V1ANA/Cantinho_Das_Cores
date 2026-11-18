@@ -56,6 +56,22 @@ export default function IconeMenu({ id }) {
     );
   }
 
+  if (id === "frutas") {
+    return (
+      <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true">
+        <path d="M20 20 L44 20 L20 44" fill="none" stroke="#2B3A67" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="20" cy="20" r="10" fill="#F25C54" stroke="#fff" strokeWidth="2.8" />
+        <circle cx="44" cy="20" r="10" fill="#F25C54" stroke="#fff" strokeWidth="2.8" />
+        <circle cx="20" cy="44" r="10" fill="#FFC93C" stroke="#fff" strokeWidth="2.8" />
+        <circle cx="44" cy="44" r="10" fill="#2D7FF9" stroke="#fff" strokeWidth="2.8" />
+        <circle cx="17.5" cy="19.5" r="1.6" fill="#fff" />
+        <circle cx="22.5" cy="19.5" r="1.6" fill="#fff" />
+        <circle cx="41.5" cy="19.5" r="1.6" fill="#fff" />
+        <circle cx="46.5" cy="19.5" r="1.6" fill="#fff" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true">
       <path
