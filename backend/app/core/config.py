@@ -11,7 +11,6 @@ class Settings(BaseSettings):
     jwt_secret: str = DEV_JWT_SECRET
     jwt_expire_minutes: int = 60
     cors_origins: str = "http://localhost:5185,http://localhost:5173,https://ca10v1ana.github.io"
-    database_url: str | None = None   # Ex.: postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres?sslmode=require
     database_path: str | None = None  # None = backend/data/cantinho_das_cores.sqlite3
     backup_dir: str | None = None     # None = backend/data/backups
     backup_keep_count: int = 10

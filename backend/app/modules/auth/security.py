@@ -66,7 +66,7 @@ def revoke_token_jti(jti: str | None, exp: int | float | None = None) -> None:
             (now_iso,),
         )
         db.execute(
-            "INSERT INTO tokens_revogados(jti, expira_em) VALUES (?, ?) ON CONFLICT (jti) DO NOTHING",
+            "INSERT OR IGNORE INTO tokens_revogados(jti, expira_em) VALUES (?, ?)",
             (str(jti), exp_iso),
         )
 

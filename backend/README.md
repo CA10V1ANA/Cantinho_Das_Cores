@@ -131,7 +131,7 @@ A suíte usa um **banco SQLite temporário** (`tests/conftest.py` define `DATABA
 ## Implantação, backup e persistência do SQLite
 - O SQLite roda em modo `WAL` (`Write-Ahead Logging`) com `busy_timeout = 15000`. Guarde o arquivo em volume/disco persistente.
 - Backup online sem parar a API: via `POST /api/system/backup` (com header `X-Admin-Key`) ou CLI `python -m scripts.backup_db create|list|restore`.
-- Para escalar para PostgreSQL gerenciado (ex.: Supabase), basta migrar a camada de conexão em `app/core/database.py` para `psycopg` mantendo o contrato da API.
+- Deploy recomendado em SQLite puro: Front-End na **Vercel** (`vercel.json`) + Back-End FastAPI no **Render** (`render.yaml`), **Railway** ou **Fly.io** (`backend/Dockerfile`) com volume persistente montado em `/var/data` ou `/srv/backend/data`.
 
 ## Pontos conhecidos / evoluções futuras
 - O cadastro ainda não grava o nome do responsável no banco porque a tabela `responsaveis` do `schema.sql` oficial não possui coluna `nome` (exibe-se a parte antes do `@` do e-mail).

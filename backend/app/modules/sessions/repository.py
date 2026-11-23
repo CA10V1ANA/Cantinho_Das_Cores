@@ -1,7 +1,7 @@
-"""Persistência de partidas (compatível com SQLite e PostgreSQL/Supabase); partidas abandonadas também são gravadas."""
+"""Persistência SQLite de partidas; partidas abandonadas também são gravadas."""
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from app.core.database import as_datetime, connect, to_id
+from app.core.database import connect, to_id
 
 
 @dataclass
@@ -82,8 +82,8 @@ class SQLiteSessionRepository:
     def create(self, item: SessionRecord):
         score = max(0, min(100, int(item.score)))
         with connect() as db:
-            inserted = db.execute(
-                "INSERT INTO partidas(id_crianca,id_jogo,acertos,erros,duracao_seg,pontuacao,concluida,jogado_em) VALUES(?,?,?,?,?,?,?,?) RETURNING id_partida",
+            cur = db.execute(
+                "INSERT INTO partidas(id_crianca,id_jogo,acertos,erros,duracao_seg,pontuacao,concluida,jogado_em) VALUES(?,?,?,?,?,?,?,?)",
                 (
                     int(item.child_id),
                     item.game_id,
@@ -94,10 +94,10 @@ class SQLiteSessionRepository:
                     int(item.completed),
                     _to_utc_naive(item.played_at).isoformat(sep=" "),
                 ),
-            ).fetchone()
+            )
             row = db.execute(
                 "SELECT p.*, c.id_responsavel,c.idade FROM partidas p JOIN criancas c ON c.id_crianca=p.id_crianca WHERE p.id_partida=?",
-                (inserted["id_partida"],),
+                (cur.lastrowid,),
             ).fetchone()
         return self._record(row)
 
@@ -142,7 +142,7 @@ class SQLiteSessionRepository:
         incorrect = int(r["erros"])
         attempts = correct + incorrect
         accuracy = round(correct / attempts * 100) if attempts else 0
-        dt = as_datetime(r["jogado_em"])
+        dt = datetime.fromisoformat(r["jogado_em"])
         return SessionRecord(
             str(r["id_partida"]),
             str(r["id_responsavel"]),

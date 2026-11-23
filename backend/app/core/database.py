@@ -1,17 +1,10 @@
-"""Camada de persistência dual: SQLite (desenvolvimento/testes em modo WAL + backups online)
-e PostgreSQL / Supabase (produção via DATABASE_URL com psycopg)."""
-from contextlib import contextmanager
-from datetime import date, datetime, timezone
-from decimal import Decimal
-from pathlib import Path
+"""Conexões SQLite, persistência em modo WAL, backups online seguros e inicialização idempotente do schema oficial da equipe."""
+from datetime import datetime, timezone
 import re
 import sqlite3
+from contextlib import contextmanager
+from pathlib import Path
 from app.core.config import settings
-
-try:
-    import psycopg
-except ImportError:  # pragma: no cover
-    psycopg = None
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_DB = BACKEND_DIR / "data" / "cantinho_das_cores.sqlite3"
@@ -19,170 +12,19 @@ DB_PATH = Path(settings.database_path) if settings.database_path else DEFAULT_DB
 DEFAULT_BACKUP_DIR = BACKEND_DIR / "data" / "backups"
 BACKUP_DIR = Path(settings.backup_dir) if settings.backup_dir else DEFAULT_BACKUP_DIR
 SCHEMA_PATH = BACKEND_DIR / "schema.sql"
-SUPABASE_SCHEMA_PATH = BACKEND_DIR / "schema_supabase.sql"
-
-INTEGRITY_ERRORS: tuple[type[Exception], ...] = (
-    (sqlite3.IntegrityError, psycopg.IntegrityError)
-    if psycopg is not None
-    else (sqlite3.IntegrityError,)
-)
 
 _ID_RE = re.compile(r"[0-9]{1,18}")
 
 
-def is_postgres() -> bool:
-    url = (settings.database_url or "").strip().lower()
-    return url.startswith(("postgres://", "postgresql://"))
-
-
-def sql_date(expr: str) -> str:
-    """Extrai a data (YYYY-MM-DD) de uma coluna timestamp de forma portátil entre SQLite e PostgreSQL."""
-    return f"CAST({expr} AS DATE)" if is_postgres() else f"date({expr})"
-
-
-def as_datetime(value) -> datetime | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value.astimezone(timezone.utc).replace(tzinfo=None) if value.tzinfo else value
-    return datetime.fromisoformat(str(value))
-
-
-def as_date(value) -> date | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    return date.fromisoformat(str(value))
-
-
-def as_float(value) -> float | None:
-    if value is None:
-        return None
-    if isinstance(value, Decimal):
-        return float(value)
-    return float(value)
-
-
 def to_id(value):
-    """Converte um identificador recebido pela API em inteiro do banco; devolve None se não for válido
+    """Converte um identificador recebido pela API em inteiro do SQLite; devolve None se não for válido
     (texto, decimal, vazio ou fora da faixa), para que a rota responda 404 em vez de estourar 500."""
     text = str(value).strip() if value is not None else ""
     return int(text) if _ID_RE.fullmatch(text) else None
 
 
-def translate_qmarks_to_pg(sql: str) -> str:
-    """Converte placeholders `?` (SQLite) para `%s` (psycopg/PostgreSQL),
-    preservando literais entre aspas simples e escapando eventuais `%` literais."""
-    out: list[str] = []
-    in_single = False
-    i = 0
-    n = len(sql)
-    while i < n:
-        ch = sql[i]
-        if ch == "'":
-            out.append(ch)
-            if in_single and i + 1 < n and sql[i + 1] == "'":
-                out.append("'")
-                i += 2
-                continue
-            in_single = not in_single
-        elif not in_single and ch == "?":
-            out.append("%s")
-        elif ch == "%":
-            out.append("%%")
-        else:
-            out.append(ch)
-        i += 1
-    return "".join(out)
-
-
-class PgRow:
-    """Wrapper compatível com sqlite3.Row: aceita acesso por nome (`row['col']`) e por índice (`row[0]`)."""
-
-    def __init__(self, columns: tuple[str, ...], values: tuple):
-        self._columns = columns
-        self._values = values
-        self._map = dict(zip(columns, values))
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return self._values[key]
-        return self._map[key]
-
-    def keys(self):
-        return self._columns
-
-
-class PgCursorAdapter:
-    def __init__(self, cursor):
-        self._cursor = cursor
-
-    @property
-    def rowcount(self) -> int:
-        return self._cursor.rowcount
-
-    def _columns(self) -> tuple[str, ...]:
-        desc = self._cursor.description or ()
-        return tuple(col.name for col in desc)
-
-    def fetchone(self):
-        row = self._cursor.fetchone()
-        if row is None:
-            return None
-        return PgRow(self._columns(), row)
-
-    def fetchall(self):
-        rows = self._cursor.fetchall()
-        cols = self._columns()
-        return [PgRow(cols, r) for r in rows]
-
-    def __iter__(self):
-        return iter(self.fetchall())
-
-
-class PgConnectionAdapter:
-    def __init__(self, conn):
-        self._conn = conn
-
-    def execute(self, sql: str, params=None):
-        pg_sql = translate_qmarks_to_pg(sql)
-        cur = self._conn.cursor()
-        if params is None:
-            cur.execute(pg_sql)
-        else:
-            cur.execute(pg_sql, tuple(params))
-        return PgCursorAdapter(cur)
-
-    def commit(self):
-        self._conn.commit()
-
-    def rollback(self):
-        self._conn.rollback()
-
-    def close(self):
-        self._conn.close()
-
-
 @contextmanager
 def connect():
-    if is_postgres():
-        if psycopg is None:
-            raise RuntimeError("Instale `psycopg[binary]` para conectar ao PostgreSQL/Supabase via DATABASE_URL.")
-        raw_conn = psycopg.connect(settings.database_url)
-        conn = PgConnectionAdapter(raw_conn)
-        try:
-            yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-        return
-
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
@@ -199,16 +41,6 @@ def connect():
 
 
 def init_db():
-    if is_postgres():
-        schema = SUPABASE_SCHEMA_PATH.read_text(encoding="utf-8")
-        with connect() as conn:
-            conn._conn.execute(schema)
-            conn.execute(
-                "DELETE FROM tokens_revogados WHERE expira_em IS NOT NULL AND expira_em < ?",
-                (datetime.now(timezone.utc).isoformat(),),
-            )
-        return
-
     schema = SCHEMA_PATH.read_text(encoding="utf-8")
     with connect() as conn:
         conn.execute("PRAGMA journal_mode = WAL")
@@ -239,26 +71,14 @@ def init_db():
         )
         # O Front-End possui seis jogos; o SQL entregue continha somente cinco.
         conn.execute(
-            "INSERT INTO jogos (id_jogo, nome, habilidade) VALUES (?, ?, ?) ON CONFLICT (id_jogo) DO NOTHING",
+            "INSERT OR IGNORE INTO jogos (id_jogo, nome, habilidade) VALUES (?, ?, ?)",
             ("frutas", "Bloquinho de Frutas", "Atividade lúdica com frutas e blocos"),
         )
 
 
 def create_backup(target_dir: Path | str | None = None, keep_count: int | None = None) -> dict:
     """Realiza backup online consistente usando a API nativa sqlite3.Connection.backup()
-    e aplica rotação mantendo os últimos `keep_count` arquivos. Em PostgreSQL/Supabase,
-    os backups automáticos são gerenciados diretamente pelo provedor."""
-    if is_postgres():
-        return {
-            "filename": "managed-by-supabase-postgres",
-            "path": "",
-            "size_bytes": 0,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "rotated_out": [],
-            "managed": True,
-            "message": "Banco PostgreSQL/Supabase ativo: backups automáticos gerenciados pelo provedor.",
-        }
-
+    e aplica rotação mantendo os últimos `keep_count` arquivos."""
     dest_dir = Path(target_dir) if target_dir else BACKUP_DIR
     dest_dir.mkdir(parents=True, exist_ok=True)
     keep = keep_count if keep_count is not None else max(1, settings.backup_keep_count)
@@ -297,8 +117,6 @@ def create_backup(target_dir: Path | str | None = None, keep_count: int | None =
 
 
 def list_backups(target_dir: Path | str | None = None) -> list[dict]:
-    if is_postgres():
-        return []
     dest_dir = Path(target_dir) if target_dir else BACKUP_DIR
     if not dest_dir.exists():
         return []
