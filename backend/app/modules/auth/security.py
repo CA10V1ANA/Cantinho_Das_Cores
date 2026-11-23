@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import time
 from uuid import uuid4
@@ -10,9 +9,6 @@ from app.core.database import connect
 
 password_hasher = PasswordHasher()
 ALGORITHM = "HS256"
-
-# Controle em memória de tentativas falhas por chave (email / IP)
-_failed_attempts: dict[str, list[float]] = defaultdict(list)
 
 
 def hash_password(password: str) -> str:
@@ -44,6 +40,17 @@ def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
 
 
+def purge_expired_revoked_tokens() -> int:
+    """Remove da tabela tokens_revogados os tokens cujo prazo exp já venceu."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with connect() as db:
+        cur = db.execute(
+            "DELETE FROM tokens_revogados WHERE expira_em IS NOT NULL AND expira_em < ?",
+            (now_iso,),
+        )
+        return cur.rowcount
+
+
 def revoke_token_jti(jti: str | None, exp: int | float | None = None) -> None:
     if not jti:
         return
@@ -52,7 +59,12 @@ def revoke_token_jti(jti: str | None, exp: int | float | None = None) -> None:
         if isinstance(exp, (int, float))
         else None
     )
+    now_iso = datetime.now(timezone.utc).isoformat()
     with connect() as db:
+        db.execute(
+            "DELETE FROM tokens_revogados WHERE expira_em IS NOT NULL AND expira_em < ?",
+            (now_iso,),
+        )
         db.execute(
             "INSERT OR IGNORE INTO tokens_revogados(jti, expira_em) VALUES (?, ?)",
             (str(jti), exp_iso),
@@ -76,29 +88,37 @@ def clear_revoked_tokens() -> None:
 
 
 def check_rate_limit(key: str) -> tuple[bool, int]:
-    """Verifica se a chave (ex: email) excedeu o limite de falhas na janela configurada.
-    Retorna (bloqueado, segundos_restantes)."""
+    """Verifica no SQLite se a chave (ex: IP:email) excedeu o limite de falhas na janela configurada.
+    Persiste entre reinícios e múltiplos workers. Retorna (bloqueado, segundos_restantes)."""
     window = max(1, settings.auth_rate_limit_window_seconds)
     max_attempts = max(1, settings.auth_rate_limit_max_attempts)
-    now = time.monotonic()
-    valid = [t for t in _failed_attempts.get(key, []) if now - t < window]
-    _failed_attempts[key] = valid
-    if len(valid) >= max_attempts:
-        retry_after = max(1, int(window - (now - valid[0])))
+    now = time.time()
+    cutoff = now - window
+    with connect() as db:
+        db.execute("DELETE FROM tentativas_login WHERE criado_em < ?", (cutoff,))
+        rows = db.execute(
+            "SELECT criado_em FROM tentativas_login WHERE chave = ? AND criado_em >= ? ORDER BY criado_em ASC",
+            (key, cutoff),
+        ).fetchall()
+    if len(rows) >= max_attempts:
+        oldest = float(rows[0]["criado_em"])
+        retry_after = max(1, int(window - (now - oldest)))
         return True, retry_after
     return False, 0
 
 
 def record_failed_attempt(key: str) -> None:
     window = max(1, settings.auth_rate_limit_window_seconds)
-    now = time.monotonic()
-    valid = [t for t in _failed_attempts.get(key, []) if now - t < window]
-    valid.append(now)
-    _failed_attempts[key] = valid
+    now = time.time()
+    cutoff = now - window
+    with connect() as db:
+        db.execute("DELETE FROM tentativas_login WHERE criado_em < ?", (cutoff,))
+        db.execute("INSERT INTO tentativas_login(chave, criado_em) VALUES (?, ?)", (key, now))
 
 
 def reset_failed_attempts(key: str | None = None) -> None:
-    if key is None:
-        _failed_attempts.clear()
-    else:
-        _failed_attempts.pop(key, None)
+    with connect() as db:
+        if key is None:
+            db.execute("DELETE FROM tentativas_login")
+        else:
+            db.execute("DELETE FROM tentativas_login WHERE chave = ?", (key,))

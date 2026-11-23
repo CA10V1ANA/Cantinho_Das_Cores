@@ -54,6 +54,21 @@ def init_db():
                 expira_em   DATETIME
             )"""
         )
+        # Tabela auxiliar para persistência do rate limiting entre reinícios e workers
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS tentativas_login (
+                chave     TEXT NOT NULL,
+                criado_em REAL NOT NULL
+            )"""
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tentativas_login_chave ON tentativas_login(chave, criado_em)"
+        )
+        # Limpa tokens revogados já expirados
+        conn.execute(
+            "DELETE FROM tokens_revogados WHERE expira_em IS NOT NULL AND expira_em < ?",
+            (datetime.now(timezone.utc).isoformat(),),
+        )
         # O Front-End possui seis jogos; o SQL entregue continha somente cinco.
         conn.execute(
             "INSERT OR IGNORE INTO jogos (id_jogo, nome, habilidade) VALUES (?, ?, ?)",

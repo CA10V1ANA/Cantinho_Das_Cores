@@ -1,11 +1,11 @@
-from fastapi import Depends, FastAPI, Request, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+import hmac
 import logging
 import sqlite3
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import create_backup, list_backups
-from app.modules.auth.dependencies import require_active_responsible
 from app.modules.auth.router import router as auth_router
 from app.modules.children.router import router as children_router
 from app.modules.games.router import router as games_router
@@ -26,8 +26,23 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Admin-Key"],
 )
+
+
+def require_admin_key(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> None:
+    """Protege rotas administrativas do sistema (backups) via chave dedicada ADMIN_API_KEY."""
+    configured = (settings.admin_api_key or "").strip()
+    if not configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Operações administrativas desabilitadas: configure ADMIN_API_KEY no servidor.",
+        )
+    if not x_admin_key or not hmac.compare_digest(x_admin_key.strip(), configured):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito à administração do sistema.",
+        )
 
 
 @app.middleware("http")
@@ -80,12 +95,19 @@ def health_check():
 
 
 @app.post("/api/system/backup", tags=["Sistema"], status_code=status.HTTP_201_CREATED)
-def trigger_backup(_: str = Depends(require_active_responsible)):
-    """Executa backup online consistente do banco SQLite com rotação automática."""
-    return create_backup()
+def trigger_backup(_: None = Depends(require_admin_key)):
+    """Executa backup online consistente do banco SQLite com rotação automática (somente administração)."""
+    info = create_backup()
+    # Nunca expor o caminho absoluto do filesystem do servidor na resposta HTTP
+    return {
+        "filename": info["filename"],
+        "size_bytes": info["size_bytes"],
+        "created_at": info["created_at"],
+        "rotated_out": info["rotated_out"],
+    }
 
 
 @app.get("/api/system/backups", tags=["Sistema"])
-def get_backups(_: str = Depends(require_active_responsible)):
-    """Lista os backups disponíveis no diretório persistente."""
+def get_backups(_: None = Depends(require_admin_key)):
+    """Lista os backups disponíveis no diretório persistente (somente administração)."""
     return list_backups()

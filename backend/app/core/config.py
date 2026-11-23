@@ -15,9 +15,10 @@ class Settings(BaseSettings):
     backup_dir: str | None = None     # None = backend/data/backups
     backup_keep_count: int = 10
 
-    # Segurança de autenticação e sessões
+    # Segurança de autenticação, sessões e administração
     auth_rate_limit_max_attempts: int = 5
     auth_rate_limit_window_seconds: int = 60
+    admin_api_key: str = ""
 
     # Canal real de envio dos relatórios (console | smtp | webhook)
     report_delivery_mode: str = "console"
