@@ -17,6 +17,7 @@ const soData = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR");
 export default function Relatorios({ criancaId, nomeCrianca }) {
   const [inicio, setInicio] = useState(() => hoje(-6));
   const [fim, setFim] = useState(() => hoje());
+  const [destinatario, setDestinatario] = useState("");
   const [lista, setLista] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
@@ -68,9 +69,16 @@ export default function Relatorios({ criancaId, nomeCrianca }) {
     if (enviandoId) return;
     setErro("");
     setMsg("");
+    const destinoLimpo = destinatario.trim();
+    if (destinoLimpo && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(destinoLimpo)) {
+      return setErro("Digite um e-mail de destino válido ou deixe vazio para usar o e-mail da sua conta.");
+    }
     setEnviandoId(id);
     try {
-      const atualizado = await enviarRelatorio(id, { channel: "email" });
+      const atualizado = await enviarRelatorio(id, {
+        channel: "email",
+        recipient: destinoLimpo || null,
+      });
       setLista((l) => l.map((r) => (r.id === id ? atualizado : r)));
       setMsg(
         atualizado.delivery_recipient
@@ -108,6 +116,16 @@ export default function Relatorios({ criancaId, nomeCrianca }) {
         <label className="pais-filtro-campo" htmlFor="rel-fim">
           <span>Até</span>
           <input id="rel-fim" type="date" value={fim} min={inicio} onChange={(e) => setFim(e.target.value)} />
+        </label>
+        <label className="pais-filtro-campo" htmlFor="rel-dest">
+          <span>E-mail para envio (opcional)</span>
+          <input
+            id="rel-dest"
+            type="email"
+            placeholder="padrão: seu e-mail"
+            value={destinatario}
+            onChange={(e) => setDestinatario(e.target.value)}
+          />
         </label>
         <button type="submit" className="btn peq" disabled={gerando}>
           {gerando ? "Gerando…" : "Gerar relatório"}

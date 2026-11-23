@@ -48,9 +48,9 @@ def deliver_report(
     recipient: str | None = None,
 ) -> dict:
     """Envia o relatório pelo canal configurado ou solicitado:
-    - `smtp` / `email`: envia via servidor SMTP configurado (ou registra na outbox se `REPORT_DELIVERY_MODE=console`).
+    - `smtp` / `email`: envia via servidor SMTP configurado (em produção exige SMTP_HOST; em desenvolvimento cai na outbox se ausente).
     - `webhook`: envia POST JSON para `recipient` (URL) ou `settings.report_webhook_url`.
-    - `console`: registra na caixa de saída auditável e no log estruturado.
+    - `console`: registra na caixa de saída auditável e no log estruturado (bloqueado em produção).
     """
     mode = (channel or settings.report_delivery_mode or "console").strip().lower()
     target = (recipient or owner_email or "").strip()
@@ -68,11 +68,17 @@ def deliver_report(
         "delivered_at": now_iso,
     }
 
-    if mode in {"smtp", "email"} and settings.smtp_host:
+    if mode in {"smtp", "email"}:
         if not target or "@" not in target:
-            raise ValueError("E-mail de destino inválido para envio SMTP.")
-        _send_via_smtp(target, subject, report["text"])
-        envelope["provider"] = "smtp"
+            raise ValueError("E-mail de destino inválido para envio do relatório.")
+        if settings.smtp_host:
+            _send_via_smtp(target, subject, report["text"])
+            envelope["provider"] = "smtp"
+        elif settings.is_production:
+            raise ValueError("Envio por e-mail não configurado em produção: defina SMTP_HOST no servidor ou utilize webhook.")
+        else:
+            logger.info("Relatório #%s registrado na caixa de saída local (dev) para %s", report["id"], target)
+            envelope["provider"] = "outbox"
     elif mode == "webhook":
         webhook_url = target if target.startswith(("http://", "https://")) else settings.report_webhook_url
         if not webhook_url:
@@ -80,9 +86,13 @@ def deliver_report(
         _send_via_webhook(webhook_url, envelope)
         envelope["recipient"] = webhook_url
         envelope["provider"] = "webhook"
-    else:
+    elif mode == "console":
+        if settings.is_production:
+            raise ValueError("Canal 'console' não é permitido em produção. Configure SMTP ou Webhook.")
         logger.info("Relatório #%s enviado para %s via canal %s", report["id"], target, mode)
         envelope["provider"] = "outbox"
+    else:
+        raise ValueError(f"Canal de envio não suportado: {mode}")
 
     _delivery_outbox.append(envelope)
     return envelope
