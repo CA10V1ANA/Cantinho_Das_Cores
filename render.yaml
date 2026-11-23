@@ -16,13 +16,25 @@ services:
       - key: JWT_EXPIRE_MINUTES
         value: "60"
       - key: CORS_ORIGINS
-        value: https://ca10v1ana.github.io
+        value: https://cantinho-das-cores.vercel.app,https://ca10v1ana.github.io
       - key: DATABASE_PATH
         value: /var/data/cantinho_das_cores.sqlite3
       - key: BACKUP_DIR
         value: /var/data/backups
       - key: REPORT_DELIVERY_MODE
         value: smtp
+      - key: SMTP_HOST
+        value: smtp.resend.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: SMTP_USER
+        value: resend
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        value: onboarding@resend.dev
     disk:
       name: cantinho-sqlite-disk
       mountPath: /var/data
