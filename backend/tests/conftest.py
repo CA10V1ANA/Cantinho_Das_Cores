@@ -10,6 +10,7 @@ _TMP_DIR = tempfile.mkdtemp(prefix="cantinho_testes_")
 os.environ["DATABASE_PATH"] = os.path.join(_TMP_DIR, "testes.sqlite3")
 os.environ["APP_ENV"] = "development"
 os.environ.setdefault("JWT_SECRET", "segredo-somente-para-testes-0123456789abcdef")
+os.environ.setdefault("ADMIN_API_KEY", "chave-admin-somente-para-testes-0123456789")
 
 
 def pytest_sessionfinish(session, exitstatus):

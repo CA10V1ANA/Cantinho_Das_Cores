@@ -1,16 +1,17 @@
-"""Testes dos 5 novos requisitos do backend:
+"""Testes dos requisitos de produção e hardening do backend:
 1. Regra definitiva de pontuação do Bloquinho de Frutas
-2. Canal real de envio dos relatórios (outbox, SMTP, webhook)
+2. Canal real de envio dos relatórios (outbox, SMTP, webhook e trava em produção)
 3. Configuração de hospedagem, domínio, CORS e cabeçalhos HTTPS
-4. Backup online, rotação e persistência WAL do banco de dados SQLite
-5. Segurança reforçada de autenticação e sessões (revogação de JWT no logout, refresh token, rate limit e usuário removido)
+4. Backup online protegido por X-Admin-Key, sem vazamento de path, e persistência WAL
+5. Segurança reforçada de autenticação e sessões (revogação de JWT + limpeza de expirados, refresh token, rate limit persistido em SQLite e usuário removido)
 """
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from app.core import database
+from app.core.config import settings
 from app.main import app
 from app.modules.auth.repository import repository as users
+from app.modules.auth.security import purge_expired_revoked_tokens, revoke_token_jti
 from app.modules.children.repository import repository as kids
 from app.modules.reports.delivery import clear_outbox, get_outbox
 from app.modules.sessions.repository import repository as sessions
@@ -121,6 +122,23 @@ def test_envio_real_de_relatorio_registra_na_outbox_e_marca_enviado():
     assert outbox[0]["recipient"] == "escola@example.com"
 
 
+def test_producao_recusa_envio_silencioso_sem_smtp_configurado(monkeypatch):
+    _, h = registrar_e_logar("prod_rel@example.com")
+    cid = criar_crianca(h)
+    hoje = datetime.now(timezone.utc).date().isoformat()
+    rid = client.post("/api/reports", json={"child_id": cid, "period_start": hoje, "period_end": hoje}, headers=h).json()["id"]
+
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "smtp_host", "")
+
+    r_email = client.post(f"/api/reports/{rid}/send", json={"channel": "email"}, headers=h)
+    assert r_email.status_code == 422
+    r_console = client.post(f"/api/reports/{rid}/send", json={"channel": "console"}, headers=h)
+    assert r_console.status_code == 422
+    # Não deve ter marcado como enviado após falha
+    assert client.get(f"/api/reports/{rid}/status", headers=h).json()["sent"] is False
+
+
 # ---------- 3. Hospedagem, domínio e cabeçalhos HTTPS ----------
 def test_cabecalhos_de_seguranca_e_hsts_em_https():
     r = client.get("/health", headers={"X-Forwarded-Proto": "https"})
@@ -131,17 +149,24 @@ def test_cabecalhos_de_seguranca_e_hsts_em_https():
 
 
 # ---------- 4. Backup e persistência do banco de dados ----------
-def test_backup_online_e_rotacao_do_sqlite(tmp_path, monkeypatch):
+def test_backup_exige_admin_key_e_nao_vaza_caminho_do_servidor(tmp_path, monkeypatch):
     monkeypatch.setattr(database, "BACKUP_DIR", tmp_path)
     _, h = registrar_e_logar("backup@example.com")
     criar_crianca(h, "Lucas", 10)
 
-    r1 = client.post("/api/system/backup", headers=h)
+    # Responsável comum sem X-Admin-Key é bloqueado com 403
+    assert client.post("/api/system/backup", headers=h).status_code == 403
+    assert client.get("/api/system/backups", headers=h).status_code == 403
+
+    admin_headers = {"X-Admin-Key": settings.admin_api_key}
+    r1 = client.post("/api/system/backup", headers=admin_headers)
     assert r1.status_code == 201
     b1 = r1.json()
-    assert Path(b1["path"]).exists() and b1["size_bytes"] > 0
+    assert b1["filename"].endswith(".sqlite3") and b1["size_bytes"] > 0
+    assert "path" not in b1  # nunca vazar caminho absoluto do filesystem
+    assert (tmp_path / b1["filename"]).exists()
 
-    lista = client.get("/api/system/backups", headers=h)
+    lista = client.get("/api/system/backups", headers=admin_headers)
     assert lista.status_code == 200
     assert len(lista.json()) >= 1
 
@@ -151,9 +176,22 @@ def test_logout_revoga_token_no_servidor():
     _, h = registrar_e_logar("revogar@example.com")
     assert client.get("/api/auth/me", headers=h).status_code == 200
     assert client.post("/api/auth/logout", headers=h).status_code == 200
-    # Mesmo com token ainda dentro do prazo, o servidor recusa após logout
     assert client.get("/api/auth/me", headers=h).status_code == 401
     assert client.get("/api/children", headers=h).status_code == 401
+
+
+def test_limpeza_de_tokens_revogados_expirados():
+    expirado = (datetime.now(timezone.utc) - timedelta(hours=2)).timestamp()
+    futuro = (datetime.now(timezone.utc) + timedelta(hours=2)).timestamp()
+    revoke_token_jti("jti-antigo-expirado", expirado)
+    revoke_token_jti("jti-futuro-valido", futuro)
+
+    removidos = purge_expired_revoked_tokens()
+    assert removidos >= 0
+    with database.connect() as db:
+        jtis = {r["jti"] for r in db.execute("SELECT jti FROM tokens_revogados").fetchall()}
+    assert "jti-antigo-expirado" not in jtis
+    assert "jti-futuro-valido" in jtis
 
 
 def test_refresh_token_emite_novo_e_revoga_anterior():
@@ -161,17 +199,18 @@ def test_refresh_token_emite_novo_e_revoga_anterior():
     r = client.post("/api/auth/refresh", headers=h)
     assert r.status_code == 200
     novo_token = r.json()["access_token"]
-    # O token antigo foi revogado
     assert client.get("/api/auth/me", headers=h).status_code == 401
-    # O token novo funciona normalmente
     assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {novo_token}"}).status_code == 200
 
 
-def test_rate_limiting_bloqueia_tentativas_excessivas_de_login():
+def test_rate_limiting_persistido_em_sqlite_bloqueia_tentativas_excessivas():
     registrar_e_logar("alvo@example.com")
     for _ in range(5):
         r = client.post("/api/auth/login", json={"email": "alvo@example.com", "password": "errada"})
         assert r.status_code == 401
+    with database.connect() as db:
+        qtd = db.execute("SELECT COUNT(*) FROM tentativas_login").fetchone()[0]
+    assert qtd == 5
     bloqueado = client.post("/api/auth/login", json={"email": "alvo@example.com", "password": SENHA})
     assert bloqueado.status_code == 429
     assert "Retry-After" in bloqueado.headers
