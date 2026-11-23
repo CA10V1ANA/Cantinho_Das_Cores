@@ -1,0 +1,172 @@
+import { useCallback, useEffect, useState } from "react";
+import { enviarRelatorio, gerarRelatorio, listarRelatorios } from "../services/relatorios";
+
+function hoje(deslocamentoDias = 0) {
+  const d = new Date(Date.now() + deslocamentoDias * 86400000);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+// O banco grava CURRENT_TIMESTAMP em UTC, sem indicação de fuso na resposta.
+const dataHora = (iso) =>
+  new Date(/(Z|[+-]\d\d:\d\d)$/.test(iso) ? iso : `${iso}Z`).toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+const soData = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR");
+
+export default function Relatorios({ criancaId, nomeCrianca }) {
+  const [inicio, setInicio] = useState(() => hoje(-6));
+  const [fim, setFim] = useState(() => hoje());
+  const [lista, setLista] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+  const [msg, setMsg] = useState("");
+  const [gerando, setGerando] = useState(false);
+  const [enviandoId, setEnviandoId] = useState(null);
+  const [aberto, setAberto] = useState(null);
+
+  const carregar = useCallback(async () => {
+    setCarregando(true);
+    setErro("");
+    try {
+      setLista(await listarRelatorios(criancaId));
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setCarregando(false);
+    }
+  }, [criancaId]);
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- busca de dados ao montar/trocar filtro; o loading faz parte do fluxo
+    setAberto(null);
+    setMsg("");
+    carregar();
+  }, [carregar]);
+
+  const gerar = async (ev) => {
+    ev.preventDefault();
+    if (gerando) return;
+    setMsg("");
+    if (!inicio || !fim) return setErro("Informe as duas datas.");
+    if (fim < inicio) return setErro("A data final deve ser igual ou posterior à inicial.");
+    setErro("");
+    setGerando(true);
+    try {
+      const novo = await gerarRelatorio(criancaId, inicio, fim);
+      setLista((l) => [novo, ...l]);
+      setAberto(novo.id);
+      setMsg("Relatório gerado.");
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setGerando(false);
+    }
+  };
+
+  const enviar = async (id) => {
+    if (enviandoId) return;
+    setErro("");
+    setMsg("");
+    setEnviandoId(id);
+    try {
+      const atualizado = await enviarRelatorio(id, { channel: "email" });
+      setLista((l) => l.map((r) => (r.id === id ? atualizado : r)));
+      setMsg(
+        atualizado.delivery_recipient
+          ? `Relatório enviado para ${atualizado.delivery_recipient}.`
+          : "Relatório enviado com sucesso."
+      );
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setEnviandoId(null);
+    }
+  };
+
+  const copiar = async (texto) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setMsg("Texto copiado.");
+    } catch {
+      setErro("Não foi possível copiar. Selecione o texto e copie manualmente.");
+    }
+  };
+
+  return (
+    <div className="pais-bloco" aria-label="Relatórios pedagógicos">
+      <div className="pais-bloco-topo">
+        <h3>Relatórios de {nomeCrianca}</h3>
+        <span className="pais-legenda">{lista.length} gerado(s)</span>
+      </div>
+
+      <form className="pais-filtros" onSubmit={gerar} noValidate>
+        <label className="pais-filtro-campo" htmlFor="rel-inicio">
+          <span>De</span>
+          <input id="rel-inicio" type="date" value={inicio} max={fim} onChange={(e) => setInicio(e.target.value)} />
+        </label>
+        <label className="pais-filtro-campo" htmlFor="rel-fim">
+          <span>Até</span>
+          <input id="rel-fim" type="date" value={fim} min={inicio} onChange={(e) => setFim(e.target.value)} />
+        </label>
+        <button type="submit" className="btn peq" disabled={gerando}>
+          {gerando ? "Gerando…" : "Gerar relatório"}
+        </button>
+      </form>
+
+      {erro && (
+        <p className="erro" role="alert">
+          {erro}
+        </p>
+      )}
+      {msg && (
+        <p className="aviso-api ok" role="status">
+          {msg}
+        </p>
+      )}
+      {carregando && <p role="status">Carregando relatórios…</p>}
+      {!carregando && !erro && lista.length === 0 && <p>Nenhum relatório gerado ainda. Escolha o período e gere o primeiro.</p>}
+
+      <ul className="perfis-lista">
+        {lista.map((r) => (
+          <li key={r.id} className="perfil-item">
+            <span className="perfil-nome">
+              <strong>
+                {soData(r.period_start)} a {soData(r.period_end)}
+              </strong>
+              <br />
+              Gerado em {dataHora(r.generated_at)} ·{" "}
+              {r.sent ? `Enviado em ${dataHora(r.sent_at)}` : "Ainda não enviado"}
+            </span>
+            {!r.sent && (
+              <button
+                type="button"
+                className="btn peq"
+                disabled={enviandoId === r.id}
+                onClick={() => enviar(r.id)}
+              >
+                {enviandoId === r.id ? "Enviando…" : "Enviar relatório"}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn sec peq"
+              aria-expanded={aberto === r.id}
+              onClick={() => setAberto(aberto === r.id ? null : r.id)}
+            >
+              {aberto === r.id ? "Ocultar" : "Ver relatório"}
+            </button>
+            {aberto === r.id && (
+              <div style={{ flexBasis: "100%" }}>
+                <pre className="rel-texto">{r.text}</pre>
+                <button type="button" className="btn sec peq" onClick={() => copiar(r.text)}>
+                  Copiar texto
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

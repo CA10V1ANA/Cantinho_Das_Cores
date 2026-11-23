@@ -385,3 +385,81 @@
     min-height: 104px;
   }
 }
+
+.login-modos {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.aviso-api {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #fff4dc;
+  color: #5a3b00;
+  font-weight: 700;
+}
+
+.aviso-api.ok {
+  background: #e3f7ea;
+  color: #14502f;
+}
+
+.perfis-lista {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.perfil-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #fff;
+  border: 2px solid transparent;
+}
+
+.perfil-item.ativo {
+  border-color: #2d7ff9;
+}
+
+.perfil-item .perfil-nome {
+  flex: 1 1 140px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.perfil-form {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.crianca-atual {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.rel-texto {
+  white-space: pre-wrap;
+  font-family: inherit;
+  background: #f6f8ff;
+  border-radius: 12px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}

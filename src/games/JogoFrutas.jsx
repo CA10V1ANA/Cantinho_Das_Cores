@@ -128,6 +128,7 @@ export default function JogoFrutas(p) {
   const [mensagem, setMensagem] = useState("");
   const [acertos, setAcertos] = useState(0);
   const [erros, setErros] = useState(0);
+  const [quadradosFechados, setQuadradosFechados] = useState(0);
 
   const boardRef = useRef(null);
   const draggingRef = useRef(false);
@@ -156,6 +157,7 @@ export default function JogoFrutas(p) {
     0
   );
   const metaTotal = metas.reduce((s, m) => s + m.alvo, 0);
+  const metasConcluidas = metas.filter((m) => (coletado[m.id] || 0) >= m.alvo).length;
   const concluiuTudo = metaTotal > 0 && progressoTotal >= metaTotal;
   const estrelas = concluiuTudo
     ? total
@@ -240,6 +242,7 @@ export default function JogoFrutas(p) {
     sincronizarCadeia([], false, null);
 
     if (foiQuadrado) {
+      setQuadradosFechados((q) => q + 1);
       tocarQuadrado();
       const txt = `Quadrado mágico! Colheu ${qtdColhida} de ${frutaInfo.nome}!`;
       setMensagem(txt);
@@ -450,7 +453,14 @@ export default function JogoFrutas(p) {
       titulo="Bloquinho de Frutas"
       estrelas={estrelas}
       atrasoVitoria={750}
-      estatisticas={{ acertos, erros }}
+      estatisticas={{
+        acertos,
+        erros,
+        metasConcluidas,
+        totalMetas: metas.length,
+        quadradosFechados,
+        jogadasRestantes: jogadas,
+      }}
       fala={falaNuvi}
     >
       <div className="frutas-wrap">

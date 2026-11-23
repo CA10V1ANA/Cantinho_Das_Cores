@@ -10,10 +10,17 @@ import Titulo from "../components/Titulo";
 import IconeMenu from "../components/IconeMenu";
 import { ShapePhysics } from "../components/shape-physics";
 import PainelPais from "./PainelPais";
+import PerfisCriancas from "./PerfisCriancas";
 
 export default function Menu({
   jogos,
+  jogosCarregando,
+  jogosErro,
+  onRecarregarJogos,
   resp,
+  visitante,
+  criancaAtiva,
+  perfis,
   som,
   onToggleSom,
   efeitos,
@@ -36,9 +43,8 @@ export default function Menu({
   onToggleDepthFisica,
   seedFisica,
   onReiniciarBloquinhos,
-  historico,
-  onCarregarExemplo,
-  onLimparHistorico,
+  idadeTravada,
+  rodadasTravadas,
   onSair,
   vozes,
   vozSel,
@@ -62,7 +68,7 @@ export default function Menu({
       <div className="barra">
         <div className="barra-topo">
           <span className="resp" title={resp}>
-            {resp === "visitante" ? "Visitante" : resp}
+            {visitante ? "Visitante" : resp}
           </span>
           <button
             type="button"
@@ -134,6 +140,8 @@ export default function Menu({
               <button
                 type="button"
                 className="chip"
+                disabled={rodadasTravadas}
+                title={rodadasTravadas ? "Com um perfil de criança, as partidas têm sempre 5 rodadas" : undefined}
                 onClick={() => onAlterarTotal(totalRodadas === 5 ? 3 : 5)}
               >
                 ★ {totalRodadas} rodadas
@@ -178,6 +186,14 @@ export default function Menu({
         </button>
         <button
           type="button"
+          className={`tab-btn ${aba === "perfis" ? "ativa" : ""}`}
+          onClick={() => onAlterarAba("perfis")}
+          aria-pressed={aba === "perfis"}
+        >
+          👧 Crianças
+        </button>
+        <button
+          type="button"
           className={`tab-btn ${aba === "pais" ? "ativa" : ""}`}
           onClick={() => onAlterarAba("pais")}
           aria-pressed={aba === "pais"}
@@ -191,6 +207,26 @@ export default function Menu({
           <Titulo t="Cantinho das Cores" />
           <Nuvi fala="Oi! Escolha sua idade e um jogo para brincar." ouvivel />
 
+          <div className="crianca-atual">
+            {visitante ? (
+              <span className="aviso-api">Visitante: as partidas não ficam salvas.</span>
+            ) : criancaAtiva ? (
+              <>
+                <strong>Jogando como {criancaAtiva.name}</strong>
+                <button type="button" className="btn sec peq" onClick={() => onAlterarAba("perfis")}>
+                  Trocar
+                </button>
+              </>
+            ) : (
+              <span className="aviso-api">
+                Escolha ou cadastre um perfil de criança para salvar as partidas.{" "}
+                <button type="button" className="btn sec peq" onClick={() => onAlterarAba("perfis")}>
+                  Abrir perfis
+                </button>
+              </span>
+            )}
+          </div>
+
           <section className="niveis-bar" aria-label="Nível por idade">
             <div className="niveis-topo">
               <span className="niveis-rotulo">Idade / Dificuldade:</span>
@@ -202,6 +238,8 @@ export default function Menu({
                   key={f.id}
                   type="button"
                   className={`nivel-chip ${String(idade) === f.id ? "ativo" : ""}`}
+                  disabled={idadeTravada}
+                  title={idadeTravada ? "A idade vem do perfil da criança" : undefined}
                   onClick={() => onAlterarIdade(f.id)}
                   aria-pressed={String(idade) === f.id}
                 >
@@ -211,6 +249,16 @@ export default function Menu({
               ))}
             </div>
           </section>
+
+          {jogosCarregando && <p role="status">Carregando jogos…</p>}
+          {jogosErro && (
+            <p className="aviso-api" role="alert">
+              {jogosErro}{" "}
+              <button type="button" className="btn sec peq" onClick={onRecarregarJogos}>
+                Tentar de novo
+              </button>
+            </p>
+          )}
 
           <div className="menu">
             {jogos.map((j) => (
@@ -301,11 +349,15 @@ export default function Menu({
         </section>
       )}
 
+      {aba === "perfis" && <PerfisCriancas visitante={visitante} {...perfis} />}
+
       {aba === "pais" && (
         <PainelPais
-          historico={historico}
-          onCarregarExemplo={onCarregarExemplo}
-          onLimparHistorico={onLimparHistorico}
+          visitante={visitante}
+          criancas={perfis.criancas}
+          criancaId={perfis.ativaId}
+          onSelecionarCrianca={perfis.onSelecionar}
+          onIrPerfis={() => onAlterarAba("perfis")}
         />
       )}
     </main>

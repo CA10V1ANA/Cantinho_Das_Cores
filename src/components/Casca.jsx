@@ -56,6 +56,7 @@ export default function Casca({
       ? Math.max(1, Math.round((Date.now() - inicioRef.current) / 1000))
       : 1;
     return {
+      ...estatisticas,
       acertos: estatisticas?.acertos ?? estrelas,
       erros: estatisticas?.erros ?? 0,
       estrelas: Math.min(estrelas, total),
@@ -71,15 +72,30 @@ export default function Casca({
     onFim?.(montarResumo(true));
   };
 
+  // Partida abandonada: registrada uma única vez, mesmo sem nenhuma resposta (0 acertos e 0 erros).
+  const registrarAbandono = (aoFechar = false) => {
+    if (registradoRef.current) return;
+    registradoRef.current = true;
+    // Se as 5 estrelas já foram conquistadas (animação de vitória), a partida conta como concluída.
+    if (fim) onFim?.(montarResumo(true), { aoFechar });
+    else onParcial?.(montarResumo(false), { aoFechar });
+  };
+
+  const abandonoRef = useRef(registrarAbandono);
+  useEffect(() => {
+    abandonoRef.current = registrarAbandono;
+  });
+
+  // Fechar a aba ou navegar para outra página também abandona a partida em andamento.
+  useEffect(() => {
+    const aoFechar = () => abandonoRef.current(true);
+    window.addEventListener("pagehide", aoFechar);
+    return () => window.removeEventListener("pagehide", aoFechar);
+  }, []);
+
   const sair = () => {
     cancelarFala();
-    if (!registradoRef.current) {
-      const resumo = montarResumo(false);
-      if (resumo.acertos + resumo.erros > 0) {
-        registradoRef.current = true;
-        onParcial?.(resumo);
-      }
-    }
+    registrarAbandono();
     onSair();
   };
 

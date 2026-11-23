@@ -1,23 +1,29 @@
-import { useState, useMemo } from "react";
-import { FAIXAS_ETARIAS } from "../data/jogosData";
-import {
-  NOMES_JOGOS,
-  ORDEM_IDADES,
-  ORDEM_JOGOS,
-  calcularMetricas,
-  exportarHistoricoCSV,
-} from "../utils/desempenho";
+import { useCallback, useEffect, useState } from "react";
+import { evolucao, historico, porJogo, resumo } from "../services/dashboard";
+import Relatorios from "./Relatorios";
 
 function formatarDataCurta(iso) {
   try {
-    return new Date(iso).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-    });
+    return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
   } catch {
     return "";
   }
 }
+
+function formatarTempo(seg) {
+  if (seg === null || seg === undefined) return "—";
+  const total = Math.round(seg);
+  const m = Math.floor(total / 60);
+  return m ? `${m} min ${String(total % 60).padStart(2, "0")} s` : `${total} s`;
+}
+
+const pontos = (v) => (v === null || v === undefined ? "—" : `${Math.round(v)}`);
+
+const PERIODOS = [
+  { id: "", rotulo: "Todo o período" },
+  { id: "7", rotulo: "7 dias" },
+  { id: "30", rotulo: "30 dias" },
+];
 
 function GraficoEvolucao({ serie }) {
   if (!serie.length) return null;
@@ -54,7 +60,7 @@ function GraficoEvolucao({ serie }) {
         viewBox={`0 0 ${largura} ${altura}`}
         className="pais-grafico"
         role="img"
-        aria-label="Gráfico de evolução da taxa de acertos ao longo das partidas"
+        aria-label="Gráfico de evolução da pontuação média por dia"
       >
         {[0, 50, 100].map((v) => {
           const y = padTopo + ((100 - v) / 100) * utilH;
@@ -106,7 +112,7 @@ function GraficoEvolucao({ serie }) {
               strokeWidth="2.5"
             />
             <title>
-              {`${pt.jogoNome} (${pt.idade} anos): ${pt.acertos} acertos, ${pt.erros} erros (${pt.taxa}%)`}
+              {`${pt.rotulo}: pontuação média ${pt.taxa}% (${pt.partidas} partida(s) no dia)`}
             </title>
             <text
               x={pt.x}
@@ -125,7 +131,7 @@ function GraficoEvolucao({ serie }) {
               fontSize="11"
               fill="#4E6396"
             >
-              #{pt.indice}
+              {pt.rotulo}
             </text>
           </g>
         ))}
@@ -134,33 +140,89 @@ function GraficoEvolucao({ serie }) {
   );
 }
 
-export default function PainelPais({
-  historico,
-  onCarregarExemplo,
-  onLimparHistorico,
-}) {
-  const [filtroJogo, setFiltroJogo] = useState("todos");
-  const [filtroIdade, setFiltroIdade] = useState("todas");
-  const [confirmarLimpeza, setConfirmarLimpeza] = useState(false);
+export default function PainelPais({ visitante, criancas, criancaId, onSelecionarCrianca, onIrPerfis }) {
+  const [dias, setDias] = useState("");
+  const [jogoFiltro, setJogoFiltro] = useState("");
+  const [dados, setDados] = useState(null);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [mais, setMais] = useState({ carregando: false, erro: "" });
 
-  const metricas = useMemo(
-    () => calcularMetricas(historico, filtroJogo, filtroIdade),
-    [historico, filtroJogo, filtroIdade]
-  );
+  const crianca = criancas.find((c) => String(c.id) === String(criancaId)) || null;
+  const idCrianca = crianca?.id;
 
-  const recentes = useMemo(
-    () => [...metricas.filtrados].reverse().slice(0, 12),
-    [metricas.filtrados]
-  );
+  const carregar = useCallback(async () => {
+    if (!idCrianca) return;
+    setCarregando(true);
+    setErro("");
+    try {
+      const d = dias || undefined;
+      const [res, jogos, evo, hist] = await Promise.all([
+        resumo(idCrianca, d),
+        porJogo(idCrianca, d),
+        evolucao(idCrianca, d, jogoFiltro || undefined),
+        historico(idCrianca, jogoFiltro || undefined, 15, 0),
+      ]);
+      setDados({ res, jogos, evo, hist });
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setCarregando(false);
+    }
+  }, [idCrianca, dias, jogoFiltro]);
 
-  const textoTendencia =
-    metricas.tendencia.status === "melhora"
-      ? `↗ +${metricas.tendencia.delta}%`
-      : metricas.tendencia.status === "reforco"
-        ? `↘ ${metricas.tendencia.delta}%`
-        : metricas.tendencia.status === "estavel"
-          ? "→ Estável"
-          : "Em início";
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- busca de dados ao montar/trocar filtro; o loading faz parte do fluxo
+    setDados(null);
+    carregar();
+  }, [carregar]);
+
+  const verMais = async () => {
+    if (mais.carregando || !dados) return;
+    setMais({ carregando: true, erro: "" });
+    try {
+      const pagina = await historico(idCrianca, jogoFiltro || undefined, 15, dados.hist.items.length);
+      setDados((d) => ({ ...d, hist: { ...pagina, items: [...d.hist.items, ...pagina.items] } }));
+      setMais({ carregando: false, erro: "" });
+    } catch (e) {
+      setMais({ carregando: false, erro: e.message });
+    }
+  };
+
+  if (visitante) {
+    return (
+      <section className="pais-painel" aria-label="Painel de acompanhamento para pais e professores">
+        <h2 className="pais-titulo">Acompanhamento de Desempenho</h2>
+        <p className="aviso-api">Entre com uma conta de responsável para acompanhar o desempenho das crianças.</p>
+      </section>
+    );
+  }
+
+  if (!crianca) {
+    return (
+      <section className="pais-painel" aria-label="Painel de acompanhamento para pais e professores">
+        <h2 className="pais-titulo">Acompanhamento de Desempenho</h2>
+        <p className="aviso-api">
+          Cadastre um perfil de criança para acompanhar o desempenho.{" "}
+          <button type="button" className="btn sec peq" onClick={onIrPerfis}>
+            Abrir perfis
+          </button>
+        </p>
+      </section>
+    );
+  }
+
+  const res = dados?.res;
+  const serie = (dados?.evo || [])
+    .filter((p) => p.average_score !== null)
+    .slice(-14)
+    .map((p, i) => ({
+      id: p.date,
+      indice: i + 1,
+      taxa: Math.round(p.average_score),
+      rotulo: formatarDataCurta(`${p.date}T00:00:00`),
+      partidas: p.completed_matches,
+    }));
 
   return (
     <section className="pais-painel" aria-label="Painel de acompanhamento para pais e professores">
@@ -168,237 +230,188 @@ export default function PainelPais({
         <div>
           <h2 className="pais-titulo">Acompanhamento de Desempenho</h2>
           <p className="pais-subtitulo">
-            Analise a evolução de acertos da criança por jogo e por faixa etária (8 a 10 anos).
+            Pontuação, tempo e acertos consideram só as partidas concluídas. Partidas abandonadas aparecem nas contagens e
+            no histórico.
           </p>
-        </div>
-        <div className="pais-acoes-dados">
-          <button
-            type="button"
-            className="btn sec peq"
-            onClick={onCarregarExemplo}
-            title="Carregar partidas de exemplo para visualizar gráficos"
-          >
-            ✨ Exemplo de evolução
-          </button>
-          {historico.length > 0 && (
-            <>
-              <button
-                type="button"
-                className="btn peq"
-                onClick={() => exportarHistoricoCSV(metricas.filtrados)}
-              >
-                📥 Exportar CSV
-              </button>
-              <button
-                type="button"
-                className={`btn sec peq ${confirmarLimpeza ? "perigo" : ""}`}
-                onClick={() => {
-                  if (!confirmarLimpeza) {
-                    setConfirmarLimpeza(true);
-                  } else {
-                    onLimparHistorico();
-                    setConfirmarLimpeza(false);
-                  }
-                }}
-              >
-                {confirmarLimpeza ? "Confirmar limpar?" : "🗑️ Limpar"}
-              </button>
-            </>
-          )}
         </div>
       </div>
 
       <div className="pais-filtros">
+        {criancas.length > 1 && (
+          <label className="pais-filtro-campo" htmlFor="filtro-crianca">
+            <span>Criança</span>
+            <select id="filtro-crianca" value={criancaId} onChange={(e) => onSelecionarCrianca(e.target.value)}>
+              {criancas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.age} anos)
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="pais-filtro-campo" htmlFor="filtro-jogo">
-          <span>Jogo</span>
-          <select
-            id="filtro-jogo"
-            value={filtroJogo}
-            onChange={(e) => setFiltroJogo(e.target.value)}
-          >
-            <option value="todos">Todos os jogos</option>
-            {ORDEM_JOGOS.map((id) => (
-              <option key={id} value={id}>
-                {NOMES_JOGOS[id]}
+          <span>Jogo (evolução e histórico)</span>
+          <select id="filtro-jogo" value={jogoFiltro} onChange={(e) => setJogoFiltro(e.target.value)}>
+            <option value="">Todos os jogos</option>
+            {(dados?.jogos || []).map((j) => (
+              <option key={j.game_id} value={j.game_id}>
+                {j.name}
               </option>
             ))}
           </select>
         </label>
-
-        <div className="pais-filtro-idades" role="group" aria-label="Filtrar por faixa etária">
-          <button
-            type="button"
-            className={`chip ${filtroIdade === "todas" ? "on" : ""}`}
-            onClick={() => setFiltroIdade("todas")}
-          >
-            Todas as idades
-          </button>
-          {FAIXAS_ETARIAS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              className={`chip ${filtroIdade === f.id ? "on" : ""}`}
-              onClick={() => setFiltroIdade(f.id)}
-            >
-              {f.titulo}
+        <div className="pais-filtro-idades" role="group" aria-label="Período">
+          {PERIODOS.map((p) => (
+            <button key={p.id} type="button" className={`chip ${dias === p.id ? "on" : ""}`} aria-pressed={dias === p.id} onClick={() => setDias(p.id)}>
+              {p.rotulo}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="pais-kpis">
-        <article className="pais-kpi">
-          <span className="kpi-rotulo">Total de acertos</span>
-          <strong className="kpi-valor">{metricas.totalAcertos}</strong>
-          <span className="kpi-detalhe">
-            em {metricas.totalTentativas} tentativas
-          </span>
-        </article>
-        <article className="pais-kpi">
-          <span className="kpi-rotulo">Taxa de acerto</span>
-          <strong className="kpi-valor">{metricas.taxaMedia}%</strong>
-          <span
-            className={`kpi-badge ${metricas.tendencia.status}`}
-          >
-            {textoTendencia}
-          </span>
-        </article>
-        <article className="pais-kpi">
-          <span className="kpi-rotulo">Partidas</span>
-          <strong className="kpi-valor">{metricas.totalPartidas}</strong>
-          <span className="kpi-detalhe">
-            {metricas.partidasConcluidas} concluídas
-          </span>
-        </article>
-        <article className="pais-kpi">
-          <span className="kpi-rotulo">Maior evolução</span>
-          <strong className="kpi-valor kpi-texto">
-            {metricas.melhorEvolucao ? metricas.melhorEvolucao.nome : "—"}
-          </strong>
-          <span className="kpi-detalhe">
-            {metricas.melhorEvolucao
-              ? metricas.melhorEvolucao.tendencia.delta > 0
-                ? `+${metricas.melhorEvolucao.tendencia.delta}% de avanço`
-                : `${metricas.melhorEvolucao.taxa ?? 0}% de acerto`
-              : "Sem partidas ainda"}
-          </span>
-        </article>
-      </div>
-
-      <div className="pais-bloco pais-insights">
-        <h3>Leitura pedagógica</h3>
-        <ul>
-          {metricas.insights.map((texto, idx) => (
-            <li key={idx}>{texto}</li>
-          ))}
-        </ul>
-      </div>
-
-      {metricas.serieTemporal.length > 0 && (
-        <div className="pais-bloco">
-          <div className="pais-bloco-topo">
-            <h3>Evolução dos acertos por partida</h3>
-            <span className="pais-legenda">Últimas {metricas.serieTemporal.length} sessões</span>
-          </div>
-          <GraficoEvolucao serie={metricas.serieTemporal} />
-        </div>
+      {carregando && !dados && <p role="status">Carregando indicadores…</p>}
+      {erro && (
+        <p className="aviso-api" role="alert">
+          {erro}{" "}
+          <button type="button" className="btn sec peq" onClick={carregar}>
+            Tentar de novo
+          </button>
+        </p>
       )}
 
-      <div className="pais-bloco">
-        <div className="pais-bloco-topo">
-          <h3>Desempenho por jogo e dificuldade</h3>
-          <span className="pais-legenda">Comparativo 8, 9 e 10 anos</span>
-        </div>
-        <div className="pais-matriz">
-          {metricas.resumoPorJogo.map((item) => {
-            const barraPct = item.taxa ?? 0;
-            const badgeTrend =
-              item.tendencia.status === "melhora"
-                ? `↗ +${item.tendencia.delta}%`
-                : item.tendencia.status === "reforco"
-                  ? `↘ ${item.tendencia.delta}%`
-                  : item.partidas >= 2
-                    ? "→ Estável"
-                    : "Novo";
+      {res && res.total_matches === 0 && (
+        <p className="aviso-api">
+          {crianca.name} ainda não tem partidas {dias ? "neste período" : "registradas"}. Os indicadores aparecem depois que ela jogar.
+        </p>
+      )}
 
-            return (
-              <div key={item.jogoId} className="matriz-card">
-                <div className="matriz-topo">
-                  <strong>{item.nome}</strong>
-                  <span className={`kpi-badge ${item.tendencia.status}`}>
-                    {item.partidas > 0 ? badgeTrend : "Sem dados"}
-                  </span>
+      {res && res.total_matches > 0 && (
+        <>
+          <div className="pais-kpis">
+            <article className="pais-kpi">
+              <span className="kpi-rotulo">Partidas</span>
+              <strong className="kpi-valor">{res.total_matches}</strong>
+              <span className="kpi-detalhe">
+                {res.completed_matches} concluídas · {res.abandoned_matches} abandonadas
+              </span>
+            </article>
+            <article className="pais-kpi">
+              <span className="kpi-rotulo">Taxa de conclusão</span>
+              <strong className="kpi-valor">{res.completion_rate}%</strong>
+              <span className="kpi-detalhe">das partidas iniciadas</span>
+            </article>
+            <article className="pais-kpi">
+              <span className="kpi-rotulo">Pontuação média</span>
+              <strong className="kpi-valor">{res.average_score === null ? "—" : `${pontos(res.average_score)}%`}</strong>
+              <span className="kpi-detalhe">
+                {res.average_score === null ? "Nenhuma partida concluída" : `${res.total_correct} acertos · ${res.total_errors} ${res.total_errors === 1 ? "erro" : "erros"}`}
+              </span>
+            </article>
+            <article className="pais-kpi">
+              <span className="kpi-rotulo">Tempo médio</span>
+              <strong className="kpi-valor kpi-texto">{formatarTempo(res.average_duration_seconds)}</strong>
+              <span className="kpi-detalhe">por partida concluída</span>
+            </article>
+          </div>
+
+          <div className="pais-bloco">
+            <div className="pais-bloco-topo">
+              <h3>Evolução da pontuação média por dia</h3>
+              <span className="pais-legenda">{serie.length ? (serie.length === 1 ? "1 dia com partidas concluídas" : `Últimos ${serie.length} dias com partidas concluídas`) : ""}</span>
+            </div>
+            {serie.length > 0 ? (
+              <GraficoEvolucao serie={serie} />
+            ) : (
+              <p>Sem partidas concluídas para montar o gráfico neste filtro.</p>
+            )}
+          </div>
+
+          <div className="pais-bloco">
+            <div className="pais-bloco-topo">
+              <h3>Desempenho por jogo</h3>
+            </div>
+            <div className="pais-matriz">
+              {dados.jogos.map((j) => (
+                <div key={j.game_id} className="matriz-card">
+                  <div className="matriz-topo">
+                    <strong>{j.name}</strong>
+                    <span className="kpi-badge">
+                      {j.total_matches === 0 ? "Sem partidas" : `${j.completed_matches}/${j.total_matches} concluídas`}
+                    </span>
+                  </div>
+                  <div className="matriz-barra-fundo" aria-hidden="true">
+                    <div className="matriz-barra-preench" style={{ width: `${j.average_score ?? 0}%` }} />
+                  </div>
+                  <div className="matriz-numeros">
+                    <span>
+                      {j.average_score === null
+                        ? j.total_matches === 0
+                          ? "Ainda não jogou"
+                          : "Nenhuma partida concluída"
+                        : `${j.total_errors} ${j.total_errors === 1 ? "erro" : "erros"} · ${formatarTempo(j.average_duration_seconds)}`}
+                    </span>
+                    <strong>{j.average_score === null ? "—" : `${pontos(j.average_score)}%`}</strong>
+                  </div>
+                  {j.abandoned_matches > 0 && <small>{j.abandoned_matches} abandonada(s)</small>}
                 </div>
-                <div className="matriz-barra-fundo" aria-hidden="true">
-                  <div
-                    className="matriz-barra-preench"
-                    style={{ width: `${barraPct}%` }}
-                  />
-                </div>
-                <div className="matriz-numeros">
-                  <span>
-                    <strong>{item.acertos}</strong> acertos · {item.erros} erros
-                  </span>
-                  <strong>{item.taxa !== null ? `${item.taxa}%` : "—"}</strong>
-                </div>
-                <div className="matriz-idades">
-                  {ORDEM_IDADES.map((id) => {
-                    const info = item.porIdade[id];
-                    return (
-                      <span
-                        key={id}
-                        className={`idade-pill ${info.partidas > 0 ? "ativa" : ""}`}
-                      >
-                        {id}a: {info.taxa !== null ? `${info.taxa}% (${info.acertos})` : "—"}
-                      </span>
-                    );
-                  })}
-                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pais-bloco">
+            <div className="pais-bloco-topo">
+              <h3>Histórico de atividades</h3>
+              <span className="pais-legenda">
+                {dados.hist.items.length} de {dados.hist.total}
+              </span>
+            </div>
+            {dados.hist.items.length === 0 ? (
+              <p>Nenhuma atividade para este jogo.</p>
+            ) : (
+              <div className="pais-tabela-wrap">
+                <table className="pais-tabela">
+                  <thead>
+                    <tr>
+                      <th>Jogo</th>
+                      <th>Situação</th>
+                      <th>Acertos</th>
+                      <th>Erros</th>
+                      <th>Pontuação</th>
+                      <th>Tempo</th>
+                      <th>Data</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dados.hist.items.map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.game_name}</td>
+                        <td>{r.completed ? "Concluída" : "Abandonada"}</td>
+                        <td className="num-ok">{r.correct_answers}</td>
+                        <td>{r.incorrect_answers}</td>
+                        <td>{r.completed ? <strong>{r.score}%</strong> : "—"}</td>
+                        <td>{formatarTempo(r.duration_seconds)}</td>
+                        <td>{formatarDataCurta(r.played_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {recentes.length > 0 && (
-        <div className="pais-bloco">
-          <div className="pais-bloco-topo">
-            <h3>Registro recente de atividades</h3>
-            <span className="pais-legenda">{recentes.length} registros</span>
+            )}
+            {mais.erro && (
+              <p className="erro" role="alert">
+                {mais.erro}
+              </p>
+            )}
+            {dados.hist.items.length < dados.hist.total && (
+              <button type="button" className="btn sec peq" disabled={mais.carregando} onClick={verMais}>
+                {mais.carregando ? "Carregando…" : "Ver mais"}
+              </button>
+            )}
           </div>
-          <div className="pais-tabela-wrap">
-            <table className="pais-tabela">
-              <thead>
-                <tr>
-                  <th>Jogo</th>
-                  <th>Idade</th>
-                  <th>Acertos</th>
-                  <th>Erros</th>
-                  <th>Taxa</th>
-                  <th>Data</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentes.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      {NOMES_JOGOS[r.jogoId] || r.jogoId}
-                      {r.demo && <span className="tag-demo">Exemplo</span>}
-                    </td>
-                    <td>{r.idade} anos</td>
-                    <td className="num-ok">{r.acertos}</td>
-                    <td>{r.erros}</td>
-                    <td>
-                      <strong>{r.taxa}%</strong>
-                    </td>
-                    <td>{formatarDataCurta(r.data)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        </>
       )}
+
+      <Relatorios criancaId={crianca.id} nomeCrianca={crianca.name} />
     </section>
   );
 }

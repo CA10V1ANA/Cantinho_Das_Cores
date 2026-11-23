@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   cancelarFala,
   definirNomeVoz,
@@ -10,12 +10,11 @@ import {
   obterNomeVoz,
 } from "./utils/voz";
 import { definirEfeitosAtivos } from "./utils/sons";
-import {
-  gerarDadosExemplo,
-  lerHistorico,
-  limparHistorico,
-  registrarPartida,
-} from "./utils/desempenho";
+import { definirAoExpirar, lerToken, salvarToken } from "./services/api";
+import * as authApi from "./services/auth";
+import * as criancasApi from "./services/criancas";
+import { listarJogos } from "./services/jogos";
+import { montarPayload, registrarPartida } from "./services/partidas";
 import Fundo from "./components/Fundo";
 import Login from "./pages/Login";
 import Menu from "./pages/Menu";
@@ -26,45 +25,26 @@ import JogoCorForma from "./games/JogoCorForma";
 import JogoFalar from "./games/JogoFalar";
 import JogoFrutas from "./games/JogoFrutas";
 
-const JOGOS = [
-  {
-    id: "cores",
-    nome: "Acerte a cor",
-    bg: "linear-gradient(160deg,#D2EEFF,#86CCFF)",
-    C: JogoCores,
-  },
-  {
-    id: "encaixe",
-    nome: "Encaixe as formas",
-    bg: "linear-gradient(160deg,#D8F8DF,#86E0A0)",
-    C: JogoEncaixe,
-  },
-  {
-    id: "ligar",
-    nome: "Ligue ao nome",
-    bg: "linear-gradient(160deg,#FFF3C4,#FFD25A)",
-    C: JogoLigar,
-  },
-  {
-    id: "corforma",
-    nome: "Cor e forma",
-    bg: "linear-gradient(160deg,#EEE4FF,#BDA2FF)",
-    C: JogoCorForma,
-  },
-  {
-    id: "falar",
-    nome: "Vamos falar",
-    bg: "linear-gradient(160deg,#FFE5D6,#FFA784)",
-    C: JogoFalar,
-  },
-  {
-    id: "frutas",
-    nome: "Bloquinho de Frutas",
-    sub: "Estilo Dots",
-    bg: "linear-gradient(160deg,#FFE2E2,#FF9E99)",
-    C: JogoFrutas,
-  },
-];
+// Visual e componente de cada jogo, por identificador. Os nomes e a lista de jogos vêm da API (GET /api/games).
+const META_JOGOS = {
+  cores: { bg: "linear-gradient(160deg,#D2EEFF,#86CCFF)", C: JogoCores },
+  encaixe: { bg: "linear-gradient(160deg,#D8F8DF,#86E0A0)", C: JogoEncaixe },
+  ligar: { bg: "linear-gradient(160deg,#FFF3C4,#FFD25A)", C: JogoLigar },
+  corforma: { bg: "linear-gradient(160deg,#EEE4FF,#BDA2FF)", C: JogoCorForma },
+  falar: { bg: "linear-gradient(160deg,#FFE5D6,#FFA784)", C: JogoFalar },
+  frutas: { bg: "linear-gradient(160deg,#FFE2E2,#FF9E99)", C: JogoFrutas, sub: "Estilo Dots" },
+};
+
+const CHAVE_FILA = "cc_fila_partidas";
+const INICIO_PAGINA = Date.now();
+
+function lerFila() {
+  return lerStorage(CHAVE_FILA, []);
+}
+
+function idadeDoPerfil(idade) {
+  return String(Math.min(10, Math.max(8, Number(idade) || 8)));
+}
 
 function lerStorage(chave, fallback) {
   try {
@@ -84,8 +64,16 @@ function gravarStorage(chave, valor) {
 }
 
 export default function App() {
-  const [resp, setResp] = useState(() => lerStorage("cc_resp", ""));
-  const [tela, setTela] = useState(() => (lerStorage("cc_resp", "") ? "menu" : "login"));
+  const [usuario, setUsuario] = useState(null);
+  const [tela, setTela] = useState(() => (lerToken() ? "carregando" : "login"));
+  const [avisoLogin, setAvisoLogin] = useState("");
+  const [avisoApi, setAvisoApi] = useState(null);
+  const [catalogo, setCatalogo] = useState({ lista: [], carregando: true, erro: "" });
+  const [criancas, setCriancas] = useState([]);
+  const [criancasEstado, setCriancasEstado] = useState({ carregando: false, erro: "" });
+  const [ativaId, setAtivaId] = useState(() => lerStorage("cc_crianca", ""));
+  const enviadasRef = useRef(new Set());
+  const enviandoFilaRef = useRef(false);
   const [abaMenu, setAbaMenu] = useState("jogos");
   const [som, setSom] = useState(() => lerStorage("cc_som", true));
   const [efeitos, setEfeitos] = useState(() => lerStorage("cc_efeitos", true));
@@ -97,7 +85,6 @@ export default function App() {
   const [idade, setIdade] = useState(() => lerStorage("cc_idade", "8"));
   const [chave, setChave] = useState(0);
   const [feitos, setFeitos] = useState(() => lerStorage("cc_feitos", {}));
-  const [historico, setHistorico] = useState(() => lerHistorico());
   const [vozes, setVozes] = useState([]);
   const [vozSel, setVozSel] = useState(() => lerStorage("cc_voz", ""));
   const [depthFisica, setDepthFisica] = useState("3d");
@@ -145,6 +132,116 @@ export default function App() {
     }
   }, [vozSel]);
 
+  const avisar = useCallback((texto, tipo = "erro") => setAvisoApi({ texto, tipo }), []);
+
+  const limparSessao = useCallback((aviso = "") => {
+    salvarToken("");
+    setUsuario(null);
+    setCriancas([]);
+    setAvisoLogin(aviso);
+    setTela("login");
+  }, []);
+
+  useEffect(() => {
+    definirAoExpirar(() => limparSessao("Sua sessão expirou. Entre novamente."));
+    return () => definirAoExpirar(null);
+  }, [limparSessao]);
+
+  // Restaura a sessão a partir do token da aba, confirmando com GET /api/auth/me.
+  useEffect(() => {
+    if (!lerToken()) return;
+    let ativo = true;
+    authApi
+      .usuarioAtual()
+      .then((u) => {
+        if (!ativo) return;
+        setUsuario(u);
+        setTela("menu");
+      })
+      .catch((e) => {
+        if (!ativo) return;
+        if (e.status === 401) return; // aoExpirar já cuidou do aviso
+        setAvisoLogin(e.message);
+        setTela("login");
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const carregarJogos = useCallback(async () => {
+    setCatalogo((c) => ({ ...c, carregando: true, erro: "" }));
+    try {
+      const lista = await listarJogos();
+      setCatalogo({ lista, carregando: false, erro: "" });
+    } catch (e) {
+      setCatalogo({ lista: [], carregando: false, erro: e.message });
+    }
+  }, []);
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- busca de dados ao montar/trocar filtro; o loading faz parte do fluxo
+    carregarJogos();
+  }, [carregarJogos]);
+
+  const responsavel = usuario && !usuario.is_guest ? usuario : null;
+
+  const carregarCriancas = useCallback(async () => {
+    setCriancasEstado({ carregando: true, erro: "" });
+    try {
+      const lista = await criancasApi.listarCriancas();
+      setCriancas(lista);
+      setCriancasEstado({ carregando: false, erro: "" });
+      setAtivaId((atual) => {
+        const valido = lista.some((c) => String(c.id) === String(atual));
+        const novo = valido ? atual : lista[0]?.id ?? "";
+        gravarStorage("cc_crianca", novo);
+        return novo;
+      });
+    } catch (e) {
+      setCriancasEstado({ carregando: false, erro: e.message });
+    }
+  }, []);
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- busca de dados ao montar/trocar filtro; o loading faz parte do fluxo
+    if (responsavel) carregarCriancas();
+  }, [responsavel?.id, carregarCriancas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const criancaAtiva = criancas.find((c) => String(c.id) === String(ativaId)) || null;
+  // Com perfil ativo, a idade vem do perfil e as partidas têm 5 rodadas (regra do banco: concluída = 5 acertos).
+  const idadeEfetiva = criancaAtiva ? idadeDoPerfil(criancaAtiva.age) : idade;
+  const rodadasEfetivas = criancaAtiva ? 5 : totalRodadas;
+
+  // Fila de partidas pendentes (falha de rede/servidor): fica no navegador e é reenviada depois.
+  const enviarFila = useCallback(async () => {
+    if (!responsavel || enviandoFilaRef.current) return;
+    enviandoFilaRef.current = true;
+    try {
+      for (const item of lerFila().filter((i) => i.donoId === responsavel.id)) {
+        try {
+          await registrarPartida(item.payload);
+          gravarStorage(CHAVE_FILA, lerFila().filter((i) => i.chave !== item.chave));
+          setAvisoApi({ texto: "Partidas pendentes enviadas.", tipo: "ok" });
+        } catch (e) {
+          // Rede, servidor ou sessão expirada (401): mantém a partida na fila para o próximo login do mesmo responsável.
+          if (e.rede || e.status >= 500 || e.status === 401) break;
+          // Rejeitada pela API (ex.: criança removida): descartar para não travar a fila.
+          gravarStorage(CHAVE_FILA, lerFila().filter((i) => i.chave !== item.chave));
+        }
+      }
+    } finally {
+      enviandoFilaRef.current = false;
+    }
+  }, [responsavel]);
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- busca de dados ao montar/trocar filtro; o loading faz parte do fluxo
+    enviarFila();
+    window.addEventListener("online", enviarFila);
+    return () => window.removeEventListener("online", enviarFila);
+  }, [enviarFila]);
+
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const ler = () => {
@@ -169,12 +266,17 @@ export default function App() {
     };
   }, []);
 
-  const entrar = (email) => {
-    setResp(email);
-    gravarStorage("cc_resp", email);
+  const aoAutenticar = (u) => {
+    setUsuario(u);
+    setAvisoLogin("");
+    setAvisoApi(null);
     setAbaMenu("jogos");
     setTela("menu");
   };
+
+  const fazerLogin = async (dados) => aoAutenticar(await authApi.entrar(dados));
+  const fazerCadastro = async (dados) => aoAutenticar(await authApi.cadastrar(dados));
+  const entrarVisitante = async () => aoAutenticar(await authApi.entrarComoVisitante());
 
   const trocarVoz = (nome) => {
     definirNomeVoz(nome);
@@ -182,11 +284,10 @@ export default function App() {
     falar("Oi! Eu vou ajudar você a brincar.");
   };
 
-  const sair = () => {
+  const sair = async () => {
     cancelarFala();
-    setTela("login");
-    setResp("");
-    gravarStorage("cc_resp", "");
+    await authApi.sair();
+    limparSessao();
   };
 
   const selecionarJogo = (id) => {
@@ -195,15 +296,7 @@ export default function App() {
     setTela(id);
   };
 
-  const gravarSessao = (id, resumo, incrementarConcluidos) => {
-    const atualizadoHist = registrarPartida({
-      id: `sessao-${id}-${chave}`,
-      jogoId: id,
-      idade,
-      ...resumo,
-    });
-    setHistorico(atualizadoHist);
-
+  const gravarSessao = async (id, resumo, incrementarConcluidos, opcoes = {}) => {
     if (incrementarConcluidos) {
       setFeitos((f) => {
         const atualizado = { ...f, [id]: (f[id] || 0) + 1 };
@@ -211,9 +304,67 @@ export default function App() {
         return atualizado;
       });
     }
+    if (!responsavel || !criancaAtiva) return; // visitante ou sem perfil: nada é salvo
+
+    const chaveSessao = `${responsavel.id}-${criancaAtiva.id}-${id}-${chave}-${INICIO_PAGINA}`;
+    if (enviadasRef.current.has(chaveSessao)) return;
+    enviadasRef.current.add(chaveSessao);
+
+    const payload = montarPayload(criancaAtiva.id, id, resumo, new Date().toISOString());
+    if (opcoes.aoFechar) {
+      // A página está fechando: tentativa única, sem fila (evita duplicar se o envio chegar).
+      registrarPartida(payload, { keepalive: true }).catch(() => {});
+      return;
+    }
+    try {
+      await registrarPartida(payload);
+    } catch (e) {
+      if (e.rede || e.status >= 500) {
+        gravarStorage(CHAVE_FILA, [...lerFila(), { chave: chaveSessao, donoId: responsavel.id, payload }]);
+        avisar("Sem conexão com o servidor. A partida foi guardada e será enviada depois.");
+      } else if (e.status !== 401) {
+        avisar(`Não foi possível salvar a partida: ${e.message}`);
+      }
+    }
   };
 
-  const jogo = JOGOS.find((j) => j.id === tela);
+  const perfis = {
+    criancas,
+    carregando: criancasEstado.carregando,
+    erroLista: criancasEstado.erro,
+    ativaId,
+    onRecarregar: carregarCriancas,
+    onSelecionar: (id) => {
+      setAtivaId(id);
+      gravarStorage("cc_crianca", id);
+    },
+    onSalvar: async ({ id, nome, idade: idadeForm }) => {
+      const salva = id
+        ? await criancasApi.editarCrianca(id, { nome, idade: idadeForm })
+        : await criancasApi.criarCrianca({ nome, idade: idadeForm });
+      setCriancas((lista) => (id ? lista.map((c) => (c.id === id ? salva : c)) : [...lista, salva]));
+      if (!id) {
+        setAtivaId(salva.id);
+        gravarStorage("cc_crianca", salva.id);
+      }
+    },
+    onExcluir: async (id) => {
+      await criancasApi.excluirCrianca(id);
+      const restantes = criancas.filter((c) => c.id !== id);
+      setCriancas(restantes);
+      if (String(ativaId) === String(id)) {
+        const novo = restantes[0]?.id ?? "";
+        setAtivaId(novo);
+        gravarStorage("cc_crianca", novo);
+      }
+    },
+  };
+
+  const jogos = catalogo.lista
+    .filter((g) => g.active && META_JOGOS[g.id])
+    .map((g) => ({ id: g.id, nome: g.name, ...META_JOGOS[g.id] }));
+
+  const jogo = jogos.find((j) => j.id === tela);
   const JogoAtivo = jogo?.C;
 
   const classesRaiz = [
@@ -229,17 +380,45 @@ export default function App() {
     <div className={classesRaiz}>
       <Fundo />
 
+      {avisoApi && (
+        <p
+          className={`aviso-api ${avisoApi.tipo === "ok" ? "ok" : ""}`}
+          role={avisoApi.tipo === "ok" ? "status" : "alert"}
+        >
+          {avisoApi.texto}{" "}
+          <button type="button" className="btn sec peq" onClick={() => setAvisoApi(null)}>
+            Fechar
+          </button>
+        </p>
+      )}
+
+      {tela === "carregando" && (
+        <main className="tela" role="status">
+          Carregando…
+        </main>
+      )}
+
       {tela === "login" && (
         <Login
-          onEntrar={entrar}
-          onVisitante={() => entrar("visitante")}
+          onLogin={fazerLogin}
+          onCadastro={fazerCadastro}
+          onVisitante={entrarVisitante}
+          aviso={avisoLogin}
         />
       )}
 
       {tela === "menu" && (
         <Menu
-          jogos={JOGOS}
-          resp={resp}
+          jogos={jogos}
+          jogosCarregando={catalogo.carregando}
+          jogosErro={catalogo.erro}
+          onRecarregarJogos={carregarJogos}
+          resp={usuario?.name || usuario?.email || ""}
+          visitante={Boolean(usuario?.is_guest)}
+          criancaAtiva={criancaAtiva}
+          perfis={perfis}
+          idadeTravada={Boolean(criancaAtiva)}
+          rodadasTravadas={Boolean(criancaAtiva)}
           som={som}
           onToggleSom={() => setSom((s) => !s)}
           efeitos={efeitos}
@@ -254,9 +433,9 @@ export default function App() {
           onToggleAltoContraste={() => setAltoContraste((a) => !a)}
           calmo={calmo}
           onToggleCalmo={() => setCalmo((c) => !c)}
-          totalRodadas={totalRodadas}
+          totalRodadas={rodadasEfetivas}
           onAlterarTotal={(n) => setTotalRodadas(n)}
-          idade={idade}
+          idade={idadeEfetiva}
           onAlterarIdade={(novaIdade) => setIdade(novaIdade)}
           aba={abaMenu}
           onAlterarAba={(novaAba) => {
@@ -269,9 +448,6 @@ export default function App() {
           }
           seedFisica={seedFisica}
           onReiniciarBloquinhos={() => setSeedFisica((s) => s + 1)}
-          historico={historico}
-          onCarregarExemplo={() => setHistorico(gerarDadosExemplo())}
-          onLimparHistorico={() => setHistorico(limparHistorico())}
           onSair={sair}
           vozes={vozes}
           vozSel={vozSel}
@@ -284,9 +460,9 @@ export default function App() {
       {JogoAtivo && (
         <main className="tela">
           <JogoAtivo
-            key={`${chave}-${totalRodadas}-${idade}`}
-            total={totalRodadas}
-            idade={idade}
+            key={`${chave}-${rodadasEfetivas}-${idadeEfetiva}`}
+            total={rodadasEfetivas}
+            idade={idadeEfetiva}
             calmo={calmo}
             onSair={() => {
               cancelarFala();
@@ -296,8 +472,8 @@ export default function App() {
               cancelarFala();
               setChave((c) => c + 1);
             }}
-            onFim={(resumo) => gravarSessao(jogo.id, resumo, true)}
-            onParcial={(resumo) => gravarSessao(jogo.id, resumo, false)}
+            onFim={(resumo, opcoes) => gravarSessao(jogo.id, resumo, true, opcoes)}
+            onParcial={(resumo, opcoes) => gravarSessao(jogo.id, resumo, false, opcoes)}
           />
         </main>
       )}
