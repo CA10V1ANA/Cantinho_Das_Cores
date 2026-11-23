@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig(({ command, isPreview }) => ({
-  base: command === 'build' || isPreview ? '/front-at-pico/' : '/',
+  base: command === 'build' || isPreview ? '/Cantinho_Das_Cores/' : '/',
   plugins: [react()],
   server: {
     port: 5185,
