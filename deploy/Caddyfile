@@ -1,0 +1,13 @@
+# Substitua api.cantinhodascores.com.br pelo seu domínio real para emissão automática de certificado Let's Encrypt
+{$API_DOMAIN:api.cantinhodascores.com.br} {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    reverse_proxy api:8000
+}

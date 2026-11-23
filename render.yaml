@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: cantinho-das-cores-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRE_MINUTES
+        value: "60"
+      - key: CORS_ORIGINS
+        value: https://ca10v1ana.github.io
+      - key: DATABASE_PATH
+        value: /var/data/cantinho_das_cores.sqlite3
+      - key: BACKUP_DIR
+        value: /var/data/backups
+      - key: REPORT_DELIVERY_MODE
+        value: console
+    disk:
+      name: cantinho-sqlite-disk
+      mountPath: /var/data
+      sizeGB: 1

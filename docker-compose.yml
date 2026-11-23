@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cantinho-api
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET com pelo menos 32 caracteres}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-60}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://ca10v1ana.github.io,https://cantinhodascores.com.br}
+      DATABASE_PATH: /srv/backend/data/cantinho_das_cores.sqlite3
+      BACKUP_DIR: /srv/backend/data/backups
+      BACKUP_KEEP_COUNT: ${BACKUP_KEEP_COUNT:-10}
+      REPORT_DELIVERY_MODE: ${REPORT_DELIVERY_MODE:-console}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@cantinhodascores.com.br}
+      REPORT_WEBHOOK_URL: ${REPORT_WEBHOOK_URL:-}
+    volumes:
+      - cantinho_sqlite_data:/srv/backend/data
+    ports:
+      - "8000:8000"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: cantinho-https
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  cantinho_sqlite_data:
+  caddy_data:
+  caddy_config:
