@@ -92,46 +92,49 @@ Rotas protegidas por Bearer JWT (apenas responsáveis). Os relatórios ficam na 
 - `GET /api/reports` — relatórios anteriores, mais recentes primeiro; filtros `child_id` e `sent` (`true` enviados, `false` pendentes).
 - `GET /api/reports/{id}` — relatório completo.
 - `GET /api/reports/{id}/status` — status de envio (`sent`, `sent_at`, `generated_at`).
-- `POST /api/reports/{id}/sent` — preenche `enviado_em` com o horário atual; retorna 409 se já estiver enviado. A API só registra o envio; o envio em si (e-mail etc.) é feito fora dela.
+- `POST /api/reports/{id}/send` e `POST /api/reports/{id}/sent` — despacham o relatório pelo canal configurado (`smtp`/`email`, `webhook` ou `console` em desenvolvimento) e preenchem `enviado_em`; retornam `409` se já estiver enviado. Em `APP_ENV=production`, exige transporte real (`SMTP_HOST` ou `REPORT_WEBHOOK_URL`) configurado.
 
 ## Regra dos indicadores (módulos 5 e 6)
 Contagens de partidas (total, concluídas, abandonadas, taxa de conclusão) usam todas as partidas. Pontuação, tempo, acertos e erros dos dashboards e dos relatórios usam somente partidas concluídas; abandonadas aparecem nas contagens e no histórico.
 
+Para o **Bloquinho de Frutas (`frutas`)**, a regra definitiva normaliza `acertos` em `0..5` (respeitando as constraints do `schema.sql`), pondera precisão (`70%`) + progresso de metas (`30%`) e soma bônus por **Quadrados Mágicos** fechados (`+5` pts cada, máx. `+15`) e **jogadas restantes** ao concluir (`+2` pts cada, máx. `+10`), limitada a `0..100`.
+
 ## Configuração e variáveis de ambiente (`backend/.env`, modelo em `.env.example`)
 | Variável | Padrão | Observação |
 |---|---|---|
-| `APP_ENV` | `development` | `production` ativa as validações abaixo. |
-| `JWT_SECRET` | segredo de desenvolvimento | **Obrigatório em produção**: ≥ 32 caracteres, aleatório, privado e diferente do exemplo. Gere com `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
-| `JWT_EXPIRE_MINUTES` | `60` | Validade do token. |
-| `CORS_ORIGINS` | `http://localhost:5185,http://localhost:5173` | Origens do front separadas por vírgula. Em produção, só os domínios reais; `*` é recusado. |
-| `DATABASE_PATH` | `backend/data/cantinho_das_cores.sqlite3` | Caminho do SQLite (relativo à pasta de onde o `uvicorn` é iniciado). Lido via `.env` ou variável de ambiente. |
-
-Com `APP_ENV=production`, a API **não inicia** se `JWT_SECRET` for o padrão/de exemplo ou tiver menos de 32 caracteres, ou se `CORS_ORIGINS` contiver `*`.
+| `APP_ENV` | `development` | `production` ativa travas de segurança (JWT, CORS e canal real de relatório). |
+| `JWT_SECRET` | segredo de desenvolvimento | **Obrigatório em produção**: ≥ 32 caracteres aleatórios. Gere com `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
+| `ADMIN_API_KEY` | vazio | Chave administrativa (`X-Admin-Key`) exigida em `POST /api/system/backup` e `GET /api/system/backups`. |
+| `JWT_EXPIRE_MINUTES` | `60` | Validade do token (renovado automaticamente via `POST /api/auth/refresh`). |
+| `CORS_ORIGINS` | `http://localhost:5185,http://localhost:5173,https://ca10v1ana.github.io` | Origens do front separadas por vírgula. Em produção, só os domínios reais (ex.: URL da Vercel); `*` é recusado. |
+| `DATABASE_PATH` | `backend/data/cantinho_das_cores.sqlite3` | Caminho do SQLite em modo `WAL`. |
+| `BACKUP_DIR` / `BACKUP_KEEP_COUNT` | `backend/data/backups` / `10` | Diretório e rotação automática de backups online. |
+| `AUTH_RATE_LIMIT_MAX_ATTEMPTS` / `WINDOW_SECONDS` | `5` / `60` | Proteção contra força bruta no login persistida no SQLite (`HTTP 429`). |
+| `REPORT_DELIVERY_MODE` / `SMTP_*` / `REPORT_WEBHOOK_URL` | `console` | Canal de envio de relatórios (`smtp`, `webhook` ou `console` somente em dev). |
 
 ## Testes
-```powershell
+```bash
 cd backend
 pytest -q
 ```
-A suíte usa um **banco SQLite temporário** (`tests/conftest.py` define `DATABASE_PATH` antes de importar a aplicação e apaga a pasta ao final); ela não lê nem altera `backend/data/`. Cobre autenticação, perfis, catálogo, partidas, dashboard, relatórios, isolamento entre responsáveis, configuração de produção e tratamento de erros.
+A suíte usa um **banco SQLite temporário** (`tests/conftest.py` define `DATABASE_PATH` antes de importar a aplicação e apaga a pasta ao final); ela não lê nem altera `backend/data/`.
 
-## Segurança — o que existe
+## Segurança — o que está implementado
 - Senhas só como hash Argon2; JWT HS256 com expiração (`exp`), `jti` e verificação de assinatura.
-- Toda rota privada filtra por responsável (`id_responsavel` do token); recurso de outro responsável responde 404. Visitante recebe 403 nas rotas restritas.
-- Consultas SQLite parametrizadas (`?`); identificadores inválidos (texto, decimais, números fora da faixa) respondem 404.
-- Erros não previstos respondem `500` com mensagem genérica em JSON (o detalhe vai só para o log do servidor); violações de constraint viram 409/422 amigáveis.
-- `played_at` com fuso é convertido para UTC antes de gravar.
+- **Revogação server-side no logout (`tokens_revogados`)** com limpeza automática de tokens expirados, além de **rotação de sessão** em `POST /api/auth/refresh`.
+- **Rate limiting persistido em SQLite (`tentativas_login`)** no login, retornando `429 Too Many Requests` com `Retry-After`.
+- **Validação de responsável ativo** em todas as rotas privadas (tokens de contas excluídas são recusados imediatamente com `401`).
+- Toda rota privada filtra por responsável (`id_responsavel` do token); recurso de outro responsável responde `404`. Visitante recebe `403` nas rotas restritas.
+- Rotas administrativas de backup (`/api/system/backup` e `/api/system/backups`) exigem `X-Admin-Key` e nunca expõem caminhos absolutos do servidor.
+- Cabeçalhos de segurança (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e `Strict-Transport-Security` em HTTPS/produção).
 
 ## Implantação, backup e persistência do SQLite
-- O banco é **um arquivo**. Guarde-o em disco persistente (em hospedagens com disco efêmero ele se perde a cada deploy/reinício).
-- Backup: com a API parada, copie o arquivo; com a API no ar, use `sqlite3 arquivo ".backup destino.sqlite3"`. Faça backups periódicos e teste a restauração.
-- SQLite aceita bem poucas escritas simultâneas; para uso compartilhado/produção real, a equipe deve decidir hospedagem, backup e uma eventual migração para banco servidor (decisão externa a este módulo).
-- Rode a API atrás de HTTPS e defina `APP_ENV=production`, `JWT_SECRET` e `CORS_ORIGINS` reais.
+- O SQLite roda em modo `WAL` (`Write-Ahead Logging`) com `busy_timeout = 15000`. Guarde o arquivo em volume/disco persistente.
+- Backup online sem parar a API: via `POST /api/system/backup` (com header `X-Admin-Key`) ou CLI `python -m scripts.backup_db create|list|restore`.
+- Para escalar para PostgreSQL gerenciado (ex.: Supabase), basta migrar a camada de conexão em `app/core/database.py` para `psycopg` mantendo o contrato da API.
 
-## Limitações conhecidas
-- Logout é stateless: o token não é revogado no servidor (expira por tempo).
-- Não há limitação de tentativas de login (rate limiting) nem bloqueio de conta.
-- O cadastro não grava o nome do responsável (o schema oficial não tem coluna); o nome exibido vem da parte antes do `@` do e-mail.
-- Token de um responsável excluído continua válido até expirar (as rotas privadas passam a devolver listas vazias/404/422).
-- O sistema de envio real de relatórios (e-mail etc.) não existe; `POST /api/reports/{id}/sent` apenas registra o envio.
+## Pontos conhecidos / evoluções futuras
+- O cadastro ainda não grava o nome do responsável no banco porque a tabela `responsaveis` do `schema.sql` oficial não possui coluna `nome` (exibe-se a parte antes do `@` do e-mail).
+- Fluxo de recuperação de senha ("Esqueci minha senha") ainda não implementado.
+
 
