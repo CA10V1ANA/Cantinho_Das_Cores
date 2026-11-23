@@ -1,11 +1,10 @@
 import hmac
 import logging
-import sqlite3
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.core.database import create_backup, list_backups
+from app.core.database import INTEGRITY_ERRORS, create_backup, is_postgres, list_backups
 from app.modules.auth.router import router as auth_router
 from app.modules.children.router import router as children_router
 from app.modules.games.router import router as games_router
@@ -17,7 +16,7 @@ logger = logging.getLogger("cantinho")
 
 app = FastAPI(
     title="Cantinho das Cores API",
-    description="API do Cantinho das Cores — Autenticação reforçada, perfis, catálogo, partidas, dashboard, envio de relatórios e backup SQLite.",
+    description="API do Cantinho das Cores — Autenticação reforçada, perfis, catálogo, partidas, dashboard, envio de relatórios e suporte a SQLite/Supabase PostgreSQL.",
     version="1.0.0",
 )
 
@@ -64,22 +63,25 @@ app.include_router(dashboard_router)
 app.include_router(reports_router)
 
 
-@app.exception_handler(sqlite3.IntegrityError)
-async def sqlite_constraint_error(_: Request, exc: sqlite3.IntegrityError):
+async def _handle_integrity_error(_: Request, exc: Exception):
     message = str(exc).lower()
-    if "unique" in message:
+    if "unique" in message or "duplicate key" in message:
         detail = "Este registro já existe."
         code = 409
     elif "foreign key" in message:
         detail = "Não foi possível concluir: o registro relacionado não existe ou não está disponível."
         code = 422
-    elif "check constraint" in message or "not null" in message:
+    elif "check constraint" in message or "not null" in message or "null value" in message:
         detail = "Os dados informados não atendem às regras de cadastro."
         code = 422
     else:
         detail = "Não foi possível salvar os dados informados."
         code = 422
     return JSONResponse(status_code=code, content={"detail": detail})
+
+
+for _err_cls in INTEGRITY_ERRORS:
+    app.add_exception_handler(_err_cls, _handle_integrity_error)
 
 
 @app.exception_handler(Exception)
@@ -91,20 +93,28 @@ async def unexpected_error(request: Request, exc: Exception):
 
 @app.get("/health", tags=["Sistema"])
 def health_check():
-    return {"status": "ok", "service": "cantinho-das-cores-api", "version": "1.0.0"}
+    return {
+        "status": "ok",
+        "service": "cantinho-das-cores-api",
+        "version": "1.0.0",
+        "database": "postgresql" if is_postgres() else "sqlite",
+    }
 
 
 @app.post("/api/system/backup", tags=["Sistema"], status_code=status.HTTP_201_CREATED)
 def trigger_backup(_: None = Depends(require_admin_key)):
     """Executa backup online consistente do banco SQLite com rotação automática (somente administração)."""
     info = create_backup()
-    # Nunca expor o caminho absoluto do filesystem do servidor na resposta HTTP
-    return {
+    result = {
         "filename": info["filename"],
         "size_bytes": info["size_bytes"],
         "created_at": info["created_at"],
         "rotated_out": info["rotated_out"],
     }
+    if info.get("managed"):
+        result["managed"] = True
+        result["message"] = info["message"]
+    return result
 
 
 @app.get("/api/system/backups", tags=["Sistema"])

@@ -1,6 +1,6 @@
 from uuid import uuid4
-import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from app.core.database import INTEGRITY_ERRORS
 from app.modules.auth.schemas import RegisterRequest, LoginRequest, TokenResponse, UserPublic, MessageResponse
 from app.modules.auth.repository import repository, UserRecord
 from app.modules.auth.security import (
@@ -34,8 +34,9 @@ def register(payload: RegisterRequest):
     record = UserRecord(id="", name=payload.name.strip(), email=email, password_hash=hash_password(payload.password))
     try:
         repository.add(record, accepted_terms=payload.accepted_terms)
-    except sqlite3.IntegrityError as exc:
-        if "UNIQUE" in str(exc).upper():
+    except INTEGRITY_ERRORS as exc:
+        msg = str(exc).upper()
+        if "UNIQUE" in msg or "DUPLICATE KEY" in msg:
             raise HTTPException(status_code=409, detail="Este e-mail já está cadastrado")
         raise HTTPException(status_code=422, detail="Não foi possível salvar o cadastro. Verifique os dados informados.")
     return token_response(record)
