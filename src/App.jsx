@@ -10,7 +10,7 @@ import {
   obterNomeVoz,
 } from "./utils/voz";
 import { definirEfeitosAtivos } from "./utils/sons";
-import { definirAoExpirar, lerToken, salvarToken } from "./services/api";
+import { definirAoExpirar, lerExpiracaoToken, lerToken, salvarToken } from "./services/api";
 import * as authApi from "./services/auth";
 import * as criancasApi from "./services/criancas";
 import { listarJogos } from "./services/jogos";
@@ -168,6 +168,52 @@ export default function App() {
       ativo = false;
     };
   }, []);
+
+  // Renova automaticamente a sessão (POST /api/auth/refresh) antes do vencimento do JWT.
+  useEffect(() => {
+    if (!usuario || !lerToken()) return;
+    let timerId = null;
+    let cancelado = false;
+    const MARGEM_MS = 5 * 60 * 1000; // renova 5 minutos antes de expirar
+
+    const agendar = () => {
+      if (cancelado || !lerToken()) return;
+      const expMs = lerExpiracaoToken();
+      const restante = expMs ? expMs - Date.now() - MARGEM_MS : 50 * 60 * 1000;
+      const espera = Math.max(10_000, restante);
+      timerId = setTimeout(async () => {
+        if (cancelado || !lerToken()) return;
+        try {
+          const atualizado = await authApi.renovarSessao();
+          if (!cancelado && atualizado) setUsuario(atualizado);
+          agendar();
+        } catch {
+          // Em 401 o callback aoExpirar encerra a sessão; falhas temporárias tentam novamente ao voltar foco.
+        }
+      }, espera);
+    };
+
+    const aoVoltarFoco = () => {
+      if (document.visibilityState !== "visible" || !lerToken()) return;
+      const expMs = lerExpiracaoToken();
+      if (expMs && expMs - Date.now() <= MARGEM_MS) {
+        authApi
+          .renovarSessao()
+          .then((u) => {
+            if (!cancelado && u) setUsuario(u);
+          })
+          .catch(() => {});
+      }
+    };
+
+    agendar();
+    document.addEventListener("visibilitychange", aoVoltarFoco);
+    return () => {
+      cancelado = true;
+      if (timerId) clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", aoVoltarFoco);
+    };
+  }, [usuario?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const carregarJogos = useCallback(async () => {
     setCatalogo((c) => ({ ...c, carregando: true, erro: "" }));

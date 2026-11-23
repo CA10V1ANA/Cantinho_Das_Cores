@@ -1,6 +1,7 @@
 // Cliente HTTP único do front: URL base, token, cabeçalho Authorization e tratamento de erros.
 const BASE = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 const CHAVE_TOKEN = "cc_token";
+const CHAVE_TOKEN_EXP = "cc_token_exp";
 
 let aoExpirar = null;
 
@@ -21,10 +22,26 @@ export function lerToken() {
   }
 }
 
-export function salvarToken(token) {
+export function lerExpiracaoToken() {
   try {
-    if (token) sessionStorage.setItem(CHAVE_TOKEN, token);
-    else sessionStorage.removeItem(CHAVE_TOKEN);
+    const valor = Number(sessionStorage.getItem(CHAVE_TOKEN_EXP));
+    return Number.isFinite(valor) && valor > 0 ? valor : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function salvarToken(token, expiresInSegundos = 0) {
+  try {
+    if (token) {
+      sessionStorage.setItem(CHAVE_TOKEN, token);
+      if (expiresInSegundos > 0) {
+        sessionStorage.setItem(CHAVE_TOKEN_EXP, String(Date.now() + expiresInSegundos * 1000));
+      }
+    } else {
+      sessionStorage.removeItem(CHAVE_TOKEN);
+      sessionStorage.removeItem(CHAVE_TOKEN_EXP);
+    }
   } catch {
     // Armazenamento bloqueado: o login vale só até recarregar a página.
   }

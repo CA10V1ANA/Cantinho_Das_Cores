@@ -1,7 +1,7 @@
 import { api, salvarToken } from "./api";
 
 function guardar(resposta) {
-  salvarToken(resposta.access_token);
+  salvarToken(resposta.access_token, Number(resposta.expires_in) || 0);
   return resposta.user;
 }
 
