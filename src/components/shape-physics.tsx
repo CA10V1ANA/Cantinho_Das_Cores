@@ -67,6 +67,7 @@ export const ShapePhysics = forwardRef<ShapePhysicsHandle, ShapePhysicsProps>(fu
       engine.current = null;
     };
   }, []);
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- atualiza só quando a chave das configurações muda
   useEffect(() => engine.current?.update(settings), [key]);
   return (
     <div
